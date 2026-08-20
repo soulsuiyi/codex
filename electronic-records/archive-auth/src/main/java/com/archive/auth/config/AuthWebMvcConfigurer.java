@@ -14,7 +14,7 @@ public class AuthWebMvcConfigurer implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(new SaInterceptor(handle -> StpUtil.checkLogin()))
+        registry.addInterceptor(new SaInterceptor(handle -> StpUtil.checkLogin()).isAnnotation(true))
                 .addPathPatterns("/api/v1/**")
                 .excludePathPatterns(
                         "/api/v1/auth/login",
