@@ -1,0 +1,27 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: archive-system
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:file:./data/h2/archive
+    username: sa
+    password: ""
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+springdoc:
+  packages-to-scan: com.archive.api.controller
+  paths-to-match: /api/v1/**
+
+knife4j:
+  enable: true
