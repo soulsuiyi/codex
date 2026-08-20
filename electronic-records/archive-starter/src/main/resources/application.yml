@@ -8,6 +8,7 @@ spring:
     init:
       mode: always
       schema-locations: classpath:db/schema.sql
+      data-locations: classpath:db/data.sql
   datasource:
     driver-class-name: org.h2.Driver
     url: jdbc:h2:file:./data/h2/archive
@@ -22,6 +23,12 @@ mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
   configuration:
     map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+logging:
+  level:
+    com.archive.core.mapper: debug
+    com.archive.auth.mapper: debug
 
 springdoc:
   packages-to-scan: com.archive.api.controller
