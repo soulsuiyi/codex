@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: archive-system
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/schema.sql
   datasource:
     driver-class-name: org.h2.Driver
     url: jdbc:h2:file:./data/h2/archive
@@ -25,3 +29,12 @@ springdoc:
 
 knife4j:
   enable: true
+
+sa-token:
+  token-name: Authorization
+  timeout: 7200
+  active-timeout: -1
+  is-concurrent: false
+  is-share: false
+  token-style: uuid
+  is-log: false

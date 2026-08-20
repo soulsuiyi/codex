@@ -8,7 +8,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * 系统启动入口。
  */
 @SpringBootApplication(scanBasePackages = "com.archive")
-@MapperScan("com.archive.core.mapper")
+@MapperScan({"com.archive.core.mapper", "com.archive.auth.mapper"})
 public class ArchiveApplication {
 
     public static void main(String[] args) {
