@@ -58,8 +58,8 @@ public class SysFile {
     /** 更新时间 */
     private LocalDateTime updatedAt;
 
-    /** 逻辑删除标记（AGENTS.md：中转站删除为逻辑删除） */
-    @TableLogic
+    /** 逻辑删除标记（AGENTS.md：中转站删除为逻辑删除；H2 BOOLEAN 使用 true/false） */
+    @TableLogic(value = "false", delval = "true")
     private Boolean isDeleted;
 
     public Long getId() {
