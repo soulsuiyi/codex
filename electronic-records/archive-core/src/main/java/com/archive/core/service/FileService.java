@@ -1,6 +1,7 @@
 package com.archive.core.service;
 
 import com.archive.common.dto.FileVO;
+import com.archive.common.dto.VersionListVO;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -16,6 +17,16 @@ public interface FileService {
     FileVO upload(String caseNo, MultipartFile file);
 
     /**
+     * 保存单个分片到本地临时目录。
+     */
+    void saveChunk(String caseNo, String identifier, int chunkIndex, int totalChunks, MultipartFile chunk);
+
+    /**
+     * 合并分片并完成上传落库（含秒传判断）。
+     */
+    FileVO mergeChunks(String caseNo, String identifier, String fileName, int totalChunks);
+
+    /**
      * 案件文件列表（未删除，按上传时间倒序）。
      */
     List<FileVO> listByCaseNo(String caseNo);
@@ -24,6 +35,16 @@ public interface FileService {
      * 生成文件下载 Pre-signed URL（5 分钟有效）。
      */
     String downloadUrl(Long fileId);
+
+    /**
+     * 文件预览 URL（仅 PDF/图片返回，其他类型 400）。
+     */
+    String previewUrl(Long fileId);
+
+    /**
+     * 文件版本列表（当前文件 + 历史版本）。
+     */
+    VersionListVO versions(Long fileId);
 
     /**
      * 逻辑删除中转站文件（仅 STAGING 可删）。

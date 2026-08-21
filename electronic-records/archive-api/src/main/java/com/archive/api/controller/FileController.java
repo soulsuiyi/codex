@@ -4,6 +4,7 @@ import cn.dev33.satoken.annotation.SaCheckRole;
 import cn.dev33.satoken.annotation.SaMode;
 import com.archive.common.annotation.AuditLog;
 import com.archive.common.dto.FileVO;
+import com.archive.common.dto.VersionListVO;
 import com.archive.common.response.Result;
 import com.archive.core.service.FileService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,6 +43,27 @@ public class FileController {
         return Result.success(fileService.upload(caseNo, file));
     }
 
+    @PostMapping("/files/upload/chunk")
+    @Operation(summary = "分片上传", description = "上传单个分片到本地临时目录")
+    public Result<Void> uploadChunk(@RequestParam("file") MultipartFile file,
+                                    @RequestParam("caseNo") String caseNo,
+                                    @RequestParam("identifier") String identifier,
+                                    @RequestParam("chunkIndex") int chunkIndex,
+                                    @RequestParam("totalChunks") int totalChunks) {
+        fileService.saveChunk(caseNo, identifier, chunkIndex, totalChunks, file);
+        return Result.success();
+    }
+
+    @PostMapping("/files/upload/chunk/merge")
+    @Operation(summary = "分片合并", description = "校验分片齐全后合并上传并落库（含秒传）")
+    @AuditLog(module = "FILE", action = "UPLOAD")
+    public Result<FileVO> mergeChunks(@RequestParam("caseNo") String caseNo,
+                                      @RequestParam("identifier") String identifier,
+                                      @RequestParam("fileName") String fileName,
+                                      @RequestParam("totalChunks") int totalChunks) {
+        return Result.success(fileService.mergeChunks(caseNo, identifier, fileName, totalChunks));
+    }
+
     @GetMapping("/cases/{caseNo}/files")
     @Operation(summary = "获取案件文件列表", description = "未删除文件按上传时间倒序")
     public Result<List<FileVO>> list(@PathVariable String caseNo) {
@@ -52,6 +74,18 @@ public class FileController {
     @Operation(summary = "文件下载", description = "返回 5 分钟有效的 MinIO Pre-signed URL")
     public Result<String> download(@PathVariable Long id) {
         return Result.success(fileService.downloadUrl(id));
+    }
+
+    @GetMapping("/files/{id}/preview")
+    @Operation(summary = "文件在线预览", description = "PDF/图片返回 5 分钟有效 Pre-signed URL，其他类型返回 400")
+    public Result<String> preview(@PathVariable Long id) {
+        return Result.success(fileService.previewUrl(id));
+    }
+
+    @GetMapping("/files/{id}/versions")
+    @Operation(summary = "获取文件版本列表", description = "返回当前文件与历史版本")
+    public Result<VersionListVO> versions(@PathVariable Long id) {
+        return Result.success(fileService.versions(id));
     }
 
     @DeleteMapping("/files/{id}")

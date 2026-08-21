@@ -3,6 +3,7 @@ package com.archive.core.service.impl;
 import com.archive.core.service.StorageService;
 import io.minio.BucketExistsArgs;
 import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.GetObjectArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
@@ -80,6 +81,15 @@ public class StorageServiceImpl implements StorageService {
                     .build());
         } catch (Exception e) {
             throw new IllegalStateException("MinIO 预签名 URL 生成失败: " + bucket + "/" + objectName, e);
+        }
+    }
+
+    @Override
+    public InputStream getObject(String bucket, String objectName) {
+        try {
+            return minioClient.getObject(GetObjectArgs.builder().bucket(bucket).object(objectName).build());
+        } catch (Exception e) {
+            throw new IllegalStateException("MinIO 读取失败: " + bucket + "/" + objectName, e);
         }
     }
 

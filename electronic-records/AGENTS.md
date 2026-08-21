@@ -6,8 +6,8 @@
 
 本项目是「无纸化办案电子档案系统」：无纸化办案体系的核心基础设施，定位为轻量化、高安全、全流程的电子档案管理平台，实现文件产生、中转暂存、一键归档、借阅利用的全生命周期闭环管理，满足电子档案"四性"（真实性、完整性、可用性、安全性）要求。
 
-- **架构**：四层架构。接入层（Nginx：静态资源托管、API 反向代理、SSL 终止、限流、Gzip）；应用层（Spring Boot 3.x：Web 层 / Service 层 / Infrastructure 层）；数据层（H2 结构化数据 + MinIO 非结构化文件 + Elasticsearch 全文索引）；集成层（OpenAPI 对外接口，预留 SSO）。
-- **部署基调**：单机 Docker Compose 4 服务（`archive-app` / `archive-nginx` / `archive-minio` / `archive-es`），推荐 4C8G 硬件即可流畅运行。
+- **架构**：四层架构。接入层（Nginx：静态资源托管、API 反向代理、SSL 终止、限流、Gzip）；应用层（Spring Boot 3.x：Web 层 / Service 层 / Infrastructure 层）；数据层（H2 结构化数据（含 FULLTEXT 全文检索） + MinIO 非结构化文件）；集成层（OpenAPI 对外接口，预留 SSO）。
+- **部署基调**：单机 Docker Compose 3 服务（`archive-app` / `archive-nginx` / `archive-minio`），推荐 4C8G 硬件即可流畅运行。
 - **演进约束**：H2 可平滑切换 MySQL/PostgreSQL；单体可按模块边界拆分为微服务；MinIO 可扩展为分布式集群。任何实现不得阻塞这三条演进路径。
 
 ## 一、技术栈（锁定选型）
@@ -20,22 +20,21 @@
 | 后端框架 | Spring Boot | 3.x | 核心框架，自动配置 |
 | 运行时 | JDK | 21 | 虚拟线程，高并发 IO 处理 |
 | 持久层 | MyBatis-Plus | Latest | 轻量级 ORM，简化 CRUD |
-| 数据库 | H2 | File Mode | 元数据、流程状态、审计日志 |
+| 数据库 | H2 | File Mode | 元数据、流程状态、审计日志、全文检索（内置 FULLTEXT，替代 ES） |
 | 缓存 | Caffeine | Latest | 本地内存缓存（替代 Redis） |
 | 认证授权 | Sa-Token | Latest | 轻量级权限、RBAC、本地会话 |
 | 对象存储 | MinIO | 单机模式 | S3 兼容，海量文件存储 |
-| 搜索引擎 | Elasticsearch | 8.x 单节点 | 全文检索、OCR 文本索引 |
 | 文档转换 | LibreOffice | 命令行工具 | Word/Excel 转 PDF |
 | 音视频处理 | FFmpeg | 命令行工具 | 音视频转码为 HLS 流 |
 | 接口文档 | Knife4j | Latest | OpenAPI 3.0 自动生成文档 |
 | 反向代理 | Nginx | Latest | 静态资源 + API 反向代理 |
-| 部署 | Docker Compose | - | 4 组件编排，一键启动 |
+| 部署 | Docker Compose | - | 3 组件编排，一键启动 |
 
 **规则：**
 
 - 必须使用上表锁定的技术栈，禁止擅自引入或替换技术（如用 Redis 替代 Caffeine、用 JPA 替代 MyBatis-Plus）。
 - 新增依赖必须说明理由（解决什么问题、现有技术为何不满足）并经评审；必须保持 H2 兼容，禁止引入 H2 私有 SQL 或方言特性。
-- 运行时必须为 JDK 21，IO 密集型任务（OCR、ES 写入、文件流转发）必须使用虚拟线程异步执行，禁止阻塞主请求线程。
+- 运行时必须为 JDK 21，IO 密集型任务（OCR/文本提取、文件流转发）必须使用虚拟线程异步执行，禁止阻塞主请求线程。
 
 ## 二、模块划分（Maven Multi-Module）
 
@@ -46,7 +45,7 @@
 | `archive-common` | 通用模块：常量、枚举、异常定义、DTO/VO、工具类 |
 | `archive-auth` | 安全模块：Sa-Token 配置、RBAC 权限、水印过滤器、审计切面 |
 | `archive-core` | 核心业务：文件管理、两阶段存储、归档流程、案件管理 |
-| `archive-search` | 检索模块：ES 客户端、OCR 调度、索引构建与查询 |
+| `archive-search` | 检索模块：全文检索查询（H2 FULLTEXT）与文本提取（Tika/Tesseract OCR），查询经 JdbcTemplate 直连 H2 |
 | `archive-api` | 开放接口：对外 REST API、Knife4j 文档、扫描矫正接入 |
 | `archive-job` | 定时任务：权限回收、临时文件清理、索引健康检查 |
 | `archive-starter` | 启动模块：Application 入口、配置聚合、多模块依赖注入 |
@@ -67,7 +66,7 @@
 
 - 禁止模块间反向或跨层依赖（如 `archive-common` 依赖 `archive-core`、`archive-api` 依赖 `archive-job`）。
 - `archive-common` 禁止包含任何业务逻辑，只允许放常量、枚举、异常、DTO/VO、工具类。
-- 新增业务必须落入对应模块：通用能力→common；权限/水印/审计→auth；文件与案件→core；检索/OCR→search；对外接口→api；定时任务→job；启动装配→starter。禁止在 `archive-starter` 中堆积业务代码。
+- 新增业务必须落入对应模块：通用能力→common；权限/水印/审计→auth；文件与案件→core；全文检索与文本提取→search；对外接口→api；定时任务→job；启动装配→starter。禁止在 `archive-starter` 中堆积业务代码。
 - 跨模块异步任务必须通过 Spring ApplicationEvent 解耦（如上传后发布 `FileUploadedEvent` 触发 OCR/索引），禁止同步调用跨模块方法完成 IO 密集型任务。
 
 ## 三、库表设计规范
@@ -93,7 +92,7 @@
 4. **sys_menu** 菜单权限表：`parent_id`（0 表示根）、`menu_name`、`menu_type`（`M`-目录/`C`-菜单/`B`-按钮）、`perms`、`path`、`component`、`sort_order`、`visible`。
 5. **sys_case** 案件表：`case_no`（唯一索引）、`case_name`、`category_id`、`case_type`、`handler_id`、`status`（`ACTIVE`-办理中/`CLOSED`-已结/`ARCHIVED`-已归档）、`remark`。
 6. **sys_case_category** 案件分类表（树形）：`parent_id`（0 表示根节点）、`name`、`sort_order`、`level`。
-7. **sys_file** 文件表（中转站+归档区统一存储）：`case_id`、`file_name`、`storage_bucket`、`storage_path`、`file_hash`（SHA-256）、`file_size`、`mime_type`、`stage`（`STAGING`-中转站/`ARCHIVED`-归档区）、`version`、`is_latest`、`preview_path`、`created_by`。
+7. **sys_file** 文件表（中转站+归档区统一存储）：`case_id`、`file_name`、`storage_bucket`、`storage_path`、`file_hash`（SHA-256）、`file_size`、`mime_type`、`stage`（`STAGING`-中转站/`ARCHIVED`-归档区）、`version`、`is_latest`、`preview_path`、`content`（全文检索提取文本）、`created_by`。
 8. **sys_file_version** 文件版本表：`file_id`、`version`、`storage_path`、`file_name`、`file_size`、`change_desc`、`created_by`。
 9. **sys_archive** 归档记录表：`case_id`、`case_no`（冗余）、`operator_id`、`file_count`、`struct_doc_count`、`status`（`SUCCESS`-成功/`FAILED`-失败）、`remark`、`archived_at`。
 10. **sys_borrow_apply** 借阅申请表：`case_id`、`case_no`（冗余）、`applicant_id`、`file_ids`（逗号分隔）、`reason`、`need_download`、`expire_time`、`status`（借阅状态机：`PENDING_SECRETARY` → `PENDING_ADMIN` → `ACTIVE`，驳回 `REJECTED`，到期 `EXPIRED`，归还 `RETURNED`）。
@@ -109,6 +108,7 @@
 - **两阶段存储**：文件必须先进入中转站（`stage=STAGING`，存储于 `transit-bucket/{case_no}/{file_uuid}`），归档后才可进入归档区（`stage=ARCHIVED`，存储于 `archive-bucket/{case_no}/{file_uuid}`）；禁止跳级直接写入归档区。
 - **版本管理**：中转站允许多版本覆盖，覆盖时必须写 `sys_file_version` 保留历史版本，并维护 `is_latest` 标识；归档区只读，元数据禁止修改。
 - **秒传与删除**：上传必须计算 SHA-256 指纹（`file_hash`）实现秒传判断；删除中转站文件必须为逻辑删除（`is_deleted=TRUE`），物理文件保留 30 天，禁止直接物理删除。
+- **全文检索**：必须使用 H2 内置 FULLTEXT 全文索引（`FT_INIT` + `FT_CREATE_INDEX`，索引列 `sys_file(file_name, content)`，启动时幂等创建），提取文本由上传事件异步写入 `sys_file.content`；禁止引入 Elasticsearch。
 - **一键归档**：必须按 完整性校验 → Hash 比对 → H2 事务内批量更新 `sys_file.stage='ARCHIVED'` 与 `sys_case.status='ARCHIVED'` → 结构化文书归档 → 逻辑删除中转站引用 → 写入 `sys_archive` 的顺序执行，任一环节失败必须整体回滚。
 - **借阅状态机**：必须遵循 `PENDING_SECRETARY` → `PENDING_ADMIN` → `ACTIVE` 的顺序流转，只允许跳转到 `REJECTED`/`EXPIRED`/`RETURNED`，禁止绕过双重审批直接置为 `ACTIVE`。
 - **权限回收**：`archive-job` 必须每分钟扫描 `expire_time < NOW()` 且 `is_revoked=FALSE` 的借阅 Token，将 `sys_borrow_apply.status` 置为 `EXPIRED`、`sys_borrow_token.is_revoked` 置为 TRUE，并清除 Caffeine 缓存。
@@ -128,7 +128,7 @@
 - **接口文档**：所有对外接口必须使用 Knife4j 的 `@Tag`、`@Operation` 注解标注，禁止无文档接口上线。
 - **外部系统鉴权**：开放 API 必须使用 API Key + HMAC 签名（防重放攻击），支持 IP 白名单，禁止裸 API Key 明文调用。
 - **权限标注**：每个接口必须按下表标注角色权限（办案人员/仲裁秘书/档案管理员/借阅人/API Key），禁止默认放行。
-- **全文检索**：检索接口必须支持布尔查询、短语匹配、模糊查询；高亮使用 ES highlight 返回 `<em>` 标记；排序为相关度降序 > 上传时间降序；分页使用 `from/size`。
+- **全文检索**：基于 H2 内置 FULLTEXT 全文索引实现，排序为相关度降序 > 上传时间降序；分页使用统一 `page`/`size`；高亮由服务端对命中文本手工添加 `<em>` 标记。
 
 ### 4.2 接口清单（既有基准，新增接口必须保持同样风格）
 

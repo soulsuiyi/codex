@@ -97,6 +97,11 @@ CREATE TABLE IF NOT EXISTS sys_file (
     is_deleted    BOOLEAN      NOT NULL DEFAULT FALSE
 );
 CREATE INDEX IF NOT EXISTS idx_sys_file_case_stage ON sys_file(case_id, stage);
+-- 全文检索文本列（AGENTS.md：H2 FULLTEXT 全文检索底座）
+ALTER TABLE sys_file ADD COLUMN IF NOT EXISTS content TEXT;
+-- H2 全文检索引擎初始化（FULLTEXT，替代 ES）；索引由 SearchIndexInitializer 幂等创建
+CREATE ALIAS IF NOT EXISTS FT_INIT FOR "org.h2.fulltext.FullText.init";
+CALL FT_INIT();
 
 -- 4.8 文件版本表
 CREATE TABLE IF NOT EXISTS sys_file_version (

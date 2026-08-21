@@ -49,6 +49,9 @@ public class SysFile {
     /** 预览文件路径（转码后） */
     private String previewPath;
 
+    /** 全文检索提取文本（H2 FULLTEXT 索引列） */
+    private String content;
+
     /** 上传人ID */
     private Long createdBy;
 
@@ -156,6 +159,14 @@ public class SysFile {
 
     public void setPreviewPath(String previewPath) {
         this.previewPath = previewPath;
+    }
+
+    public String getContent() {
+        return content;
+    }
+
+    public void setContent(String content) {
+        this.content = content;
     }
 
     public Long getCreatedBy() {

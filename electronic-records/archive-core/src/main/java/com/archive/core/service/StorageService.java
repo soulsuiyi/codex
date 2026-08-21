@@ -23,6 +23,11 @@ public interface StorageService {
     String presignedGetUrl(String bucket, String objectName);
 
     /**
+     * 获取对象内容流（调用方负责关闭）。
+     */
+    InputStream getObject(String bucket, String objectName);
+
+    /**
      * 判断对象是否存在。
      */
     boolean objectExists(String bucket, String objectName);
