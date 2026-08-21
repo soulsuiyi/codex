@@ -1,9 +1,22 @@
-target/
-data/
-logs/
+# ===== 通用 =====
 *.iml
 .idea/
 .vscode/
 .classpath
 .project
 .settings/
+.DS_Store
+
+# ===== 后端（backend/）=====
+target/
+data/
+logs/
+*.log
+
+# ===== 前端（frontend/）=====
+node_modules/
+dist/
+dist-ssr/
+coverage/
+*.local
+.eslintcache
