@@ -17,6 +17,11 @@ public interface FileService {
     FileVO upload(String caseNo, MultipartFile file);
 
     /**
+     * 以字节数组上传（供开放 API Base64 接入等场景使用），逻辑与普通上传一致（含秒传/版本）。
+     */
+    FileVO uploadBytes(String caseNo, String fileName, String mimeType, byte[] bytes);
+
+    /**
      * 保存单个分片到本地临时目录。
      */
     void saveChunk(String caseNo, String identifier, int chunkIndex, int totalChunks, MultipartFile chunk);

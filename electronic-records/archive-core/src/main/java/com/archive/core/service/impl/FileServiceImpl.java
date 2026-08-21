@@ -25,6 +25,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URLConnection;
@@ -99,6 +100,35 @@ public class FileServiceImpl implements FileService {
         SysFile entity = buildEntity(caseEntity, caseNo,
                 StringUtils.hasText(file.getOriginalFilename()) ? file.getOriginalFilename() : objectName,
                 file.getContentType(), file.getSize(), fileHash, objectName);
+        Long fileId = insertWithVersion(entity, caseNo);
+        return toVO(sysFileMapper.selectById(fileId), caseNo);
+    }
+
+    @Override
+    public FileVO uploadBytes(String caseNo, String fileName, String mimeType, byte[] bytes) {
+        if (!StringUtils.hasText(caseNo)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "案号不能为空");
+        }
+        if (bytes == null || bytes.length == 0) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "上传文件不能为空");
+        }
+        if (bytes.length > MAX_FILE_SIZE) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "文件大小不能超过 500MB");
+        }
+        SysCase caseEntity = requireCaseByNo(caseNo);
+
+        String fileHash = sha256(bytes);
+        SysFile existing = findDedupe(caseEntity.getId(), fileHash);
+        if (existing != null) {
+            return toVO(existing, caseNo);
+        }
+
+        String objectName = caseNo + "/" + UUID.randomUUID().toString().replace("-", "");
+        storageService.putFile(transitBucket, objectName,
+                new ByteArrayInputStream(bytes), bytes.length, mimeType);
+        SysFile entity = buildEntity(caseEntity, caseNo,
+                StringUtils.hasText(fileName) ? fileName : objectName,
+                mimeType, bytes.length, fileHash, objectName);
         Long fileId = insertWithVersion(entity, caseNo);
         return toVO(sysFileMapper.selectById(fileId), caseNo);
     }
@@ -341,6 +371,14 @@ public class FileServiceImpl implements FileService {
                 }
             }
             return HexFormat.of().formatHex(digest.digest());
+        } catch (Exception e) {
+            throw new BusinessException(ResultCode.INTERNAL_ERROR, "计算文件指纹失败");
+        }
+    }
+
+    private String sha256(byte[] bytes) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
         } catch (Exception e) {
             throw new BusinessException(ResultCode.INTERNAL_ERROR, "计算文件指纹失败");
         }

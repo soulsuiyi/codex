@@ -91,12 +91,14 @@ CREATE TABLE IF NOT EXISTS sys_file (
     version       INT          NOT NULL DEFAULT 1,
     is_latest     BOOLEAN      NOT NULL DEFAULT TRUE,
     preview_path  VARCHAR(512),
-    created_by    BIGINT       NOT NULL,
+    created_by    BIGINT,
     created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_deleted    BOOLEAN      NOT NULL DEFAULT FALSE
 );
 CREATE INDEX IF NOT EXISTS idx_sys_file_case_stage ON sys_file(case_id, stage);
+-- created_by 允许为空（开放 API/系统接入上传无操作人）
+ALTER TABLE sys_file ALTER COLUMN created_by SET NULL;
 -- 全文检索文本列（AGENTS.md：H2 FULLTEXT 全文检索底座）
 ALTER TABLE sys_file ADD COLUMN IF NOT EXISTS content TEXT;
 -- H2 全文检索引擎初始化（FULLTEXT，替代 ES）；索引由 SearchIndexInitializer 幂等创建
@@ -112,10 +114,11 @@ CREATE TABLE IF NOT EXISTS sys_file_version (
     file_name    VARCHAR(255) NOT NULL,
     file_size    BIGINT       NOT NULL DEFAULT 0,
     change_desc  VARCHAR(255),
-    created_by   BIGINT       NOT NULL,
+    created_by   BIGINT,
     created_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_sys_file_version_file_id ON sys_file_version(file_id);
+ALTER TABLE sys_file_version ALTER COLUMN created_by SET NULL;
 
 -- 4.9 归档记录表
 CREATE TABLE IF NOT EXISTS sys_archive (
