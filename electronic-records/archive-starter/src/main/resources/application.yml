@@ -49,6 +49,35 @@ sa-token:
   token-style: uuid
   is-log: false
 
+management:
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - info
+          - metrics
+          - prometheus
+  endpoint:
+    health:
+      show-details: always
+  info:
+    env:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: 无纸化办案电子档案系统
+    version: 0.1.0-SNAPSHOT
+
 minio:
   endpoint: ${MINIO_ENDPOINT:http://127.0.0.1:9000}
   access-key: ${MINIO_ACCESS_KEY:minioadmin}

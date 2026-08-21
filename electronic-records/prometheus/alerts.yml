@@ -1,0 +1,31 @@
+# 告警规则样例（codeplan 8.4：CPU > 80%、内存 > 85%、磁盘 > 90%）
+# 节点磁盘指标依赖 node-exporter；告警通知由 Alertmanager 路由到企业微信/钉钉。
+groups:
+  - name: archive-system-alerts
+    rules:
+      - alert: HighCpuUsage
+        expr: 100 - avg by (instance) (rate(process_cpu_seconds_total[5m])) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "应用 CPU 使用率超过 80%"
+          description: "{{ $labels.instance }} CPU 使用率超过 80%，请检查归档任务或高并发 IO。"
+
+      - alert: HighHeapMemoryUsage
+        expr: jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"} * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "JVM 堆内存使用率超过 85%"
+          description: "{{ $labels.instance }} JVM 堆内存使用率超过 85%，可能存在内存泄漏。"
+
+      - alert: DiskAlmostFull
+        expr: 1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes) > 0.9
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "磁盘使用率超过 90%"
+          description: "{{ $labels.mountpoint }} 磁盘使用率超过 90%，请及时清理或扩容。"

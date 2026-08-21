@@ -1,0 +1,13 @@
+# Prometheus 抓取配置样例（codeplan 8.4 监控告警）
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - alerts.yml
+
+scrape_configs:
+  - job_name: archive-system
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['archive-app:8080']
