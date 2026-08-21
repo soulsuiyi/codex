@@ -1,0 +1,49 @@
+package com.archive.core.service;
+
+import com.archive.common.dto.BorrowApplyRequest;
+import com.archive.common.dto.BorrowApplyVO;
+import com.archive.common.dto.BorrowApprovalRequest;
+import com.archive.common.dto.BorrowDownloadRequest;
+import com.archive.common.dto.BorrowTokenVO;
+import com.archive.common.dto.PageResult;
+
+/**
+ * 借阅服务：申请、双重审批、授权 Token、借阅下载、归还、到期回收。
+ */
+public interface BorrowService {
+
+    /**
+     * 提交借阅申请（仅归档区文件）。
+     */
+    BorrowApplyVO apply(BorrowApplyRequest request);
+
+    /**
+     * 我的借阅申请列表。
+     */
+    PageResult<BorrowApplyVO> myList(long page, long size);
+
+    /**
+     * 审批：PENDING_SECRETARY 由 SECRETARY、PENDING_ADMIN 由 ARCHIVIST 处理。
+     */
+    BorrowApplyVO approve(Long id, BorrowApprovalRequest request);
+
+    /**
+     * 获取借阅授权 Token（仅本人且借阅生效后）。
+     */
+    BorrowTokenVO token(Long id);
+
+    /**
+     * 借阅下载（校验 Token、有效期、下载权限、授权文件）。
+     */
+    String download(Long id, BorrowDownloadRequest request);
+
+    /**
+     * 归还借阅并撤销 Token。
+     */
+    BorrowApplyVO returnFile(Long id);
+
+    /**
+     * 到期权限回收：扫描过期 Token 置 EXPIRED、撤销并清缓存（由 archive-job 定时触发）。
+     */
+    int expireExpiredBorrows();
+}
