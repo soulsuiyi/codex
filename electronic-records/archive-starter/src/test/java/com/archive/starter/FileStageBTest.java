@@ -151,17 +151,12 @@ class FileStageBTest {
         String caseNo = createCase("SB-TEST-" + System.currentTimeMillis());
 
         Long pngId = upload(token, caseNo, "preview.png", PNG_BYTES);
-        ResponseEntity<Map> pngPreview = restTemplate.exchange(
+        ResponseEntity<byte[]> pngPreview = restTemplate.exchange(
                 "/api/v1/files/" + pngId + "/preview", HttpMethod.GET,
-                new HttpEntity<>(authHeaders(token)), Map.class);
-        assertThat(pngPreview.getBody().get("code")).isEqualTo(200);
-        String url = (String) pngPreview.getBody().get("data");
-        assertThat(url).startsWith("http://127.0.0.1:9000/transit-bucket/");
-        HttpResponse<byte[]> objectResponse = HttpClient.newHttpClient().send(
-                HttpRequest.newBuilder(URI.create(url)).GET().build(),
-                HttpResponse.BodyHandlers.ofByteArray());
-        assertThat(objectResponse.statusCode()).isEqualTo(200);
-        assertThat(objectResponse.body()).isEqualTo(PNG_BYTES);
+                new HttpEntity<>(authHeaders(token)), byte[].class);
+        assertThat(pngPreview.getStatusCode().value()).isEqualTo(200);
+        assertThat(pngPreview.getHeaders().getContentType()).isEqualTo(MediaType.IMAGE_PNG);
+        assertThat(pngPreview.getBody()).isNotEqualTo(PNG_BYTES);
 
         Long txtId = upload(token, caseNo, "preview.txt", "hello".getBytes(StandardCharsets.UTF_8));
         ResponseEntity<Map> txtPreview = restTemplate.exchange(

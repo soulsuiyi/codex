@@ -60,3 +60,5 @@ minio:
 archive:
   ocr:
     command: ${ARCHIVE_OCR_COMMAND:tesseract}
+  watermark:
+    font-path: "${ARCHIVE_WATERMARK_FONT_PATH:C:/Windows/Fonts/simhei.ttf}"

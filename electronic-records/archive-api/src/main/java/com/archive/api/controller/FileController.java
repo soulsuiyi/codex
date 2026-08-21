@@ -4,11 +4,16 @@ import cn.dev33.satoken.annotation.SaCheckRole;
 import cn.dev33.satoken.annotation.SaMode;
 import com.archive.common.annotation.AuditLog;
 import com.archive.common.dto.FileVO;
+import com.archive.common.dto.FileStreamVO;
 import com.archive.common.dto.VersionListVO;
 import com.archive.common.response.Result;
 import com.archive.core.service.FileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -71,15 +76,19 @@ public class FileController {
     }
 
     @GetMapping("/files/{id}/download")
-    @Operation(summary = "文件下载", description = "返回 5 分钟有效的 MinIO Pre-signed URL")
-    public Result<String> download(@PathVariable Long id) {
-        return Result.success(fileService.downloadUrl(id));
+    @Operation(summary = "文件下载", description = "图片/PDF 返回带水印流，其他类型返回 Pre-signed URL")
+    public ResponseEntity<?> download(@PathVariable Long id) {
+        FileStreamVO vo = fileService.downloadStream(id);
+        if (vo.getStream() != null) {
+            return streamResponse(vo, false);
+        }
+        return ResponseEntity.ok(Result.success(vo.getPresignedUrl()));
     }
 
     @GetMapping("/files/{id}/preview")
-    @Operation(summary = "文件在线预览", description = "PDF/图片返回 5 分钟有效 Pre-signed URL，其他类型返回 400")
-    public Result<String> preview(@PathVariable Long id) {
-        return Result.success(fileService.previewUrl(id));
+    @Operation(summary = "文件在线预览", description = "PDF/图片返回带水印流，其他类型返回 400")
+    public ResponseEntity<?> preview(@PathVariable Long id) {
+        return streamResponse(fileService.previewStream(id), true);
     }
 
     @GetMapping("/files/{id}/versions")
@@ -94,5 +103,15 @@ public class FileController {
     public Result<Void> delete(@PathVariable Long id) {
         fileService.delete(id);
         return Result.success();
+    }
+
+    private ResponseEntity<InputStreamResource> streamResponse(FileStreamVO vo, boolean inline) {
+        MediaType mediaType = vo.getContentType() == null
+                ? MediaType.APPLICATION_OCTET_STREAM
+                : MediaType.parseMediaType(vo.getContentType());
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .header(HttpHeaders.CONTENT_DISPOSITION, inline ? "inline" : "attachment")
+                .body(new InputStreamResource(vo.getStream()));
     }
 }

@@ -6,11 +6,16 @@ import com.archive.common.dto.BorrowApplyVO;
 import com.archive.common.dto.BorrowApprovalRequest;
 import com.archive.common.dto.BorrowDownloadRequest;
 import com.archive.common.dto.BorrowTokenVO;
+import com.archive.common.dto.FileStreamVO;
 import com.archive.common.dto.PageResult;
 import com.archive.common.response.Result;
 import com.archive.core.service.BorrowService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -61,9 +66,19 @@ public class BorrowController {
     }
 
     @PostMapping("/{id}/download")
-    @Operation(summary = "下载借阅文件", description = "需携带借阅授权Token")
-    public Result<String> download(@PathVariable Long id, @RequestBody BorrowDownloadRequest request) {
-        return Result.success(borrowService.download(id, request));
+    @Operation(summary = "下载借阅文件", description = "需携带借阅授权Token；图片/PDF 返回带水印流，其他类型返回 Pre-signed URL")
+    public ResponseEntity<?> download(@PathVariable Long id, @RequestBody BorrowDownloadRequest request) {
+        FileStreamVO vo = borrowService.download(id, request);
+        if (vo.getStream() != null) {
+            MediaType mediaType = vo.getContentType() == null
+                    ? MediaType.APPLICATION_OCTET_STREAM
+                    : MediaType.parseMediaType(vo.getContentType());
+            return ResponseEntity.ok()
+                    .contentType(mediaType)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment")
+                    .body(new InputStreamResource(vo.getStream()));
+        }
+        return ResponseEntity.ok(Result.success(vo.getPresignedUrl()));
     }
 
     @PostMapping("/{id}/return")

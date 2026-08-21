@@ -7,8 +7,11 @@ import com.archive.common.dto.BorrowApprovalRequest;
 import com.archive.common.dto.BorrowDownloadRequest;
 import com.archive.common.dto.BorrowTokenVO;
 import com.archive.common.dto.PageResult;
+import com.archive.common.dto.FileStreamVO;
 import com.archive.common.exception.BusinessException;
 import com.archive.common.response.ResultCode;
+import com.archive.auth.entity.SysUser;
+import com.archive.auth.mapper.SysUserMapper;
 import com.archive.core.cache.BorrowTokenCache;
 import com.archive.core.entity.SysBorrowApply;
 import com.archive.core.entity.SysBorrowApproval;
@@ -22,6 +25,7 @@ import com.archive.core.mapper.SysCaseMapper;
 import com.archive.core.mapper.SysFileMapper;
 import com.archive.core.service.BorrowService;
 import com.archive.core.service.StorageService;
+import com.archive.core.service.WatermarkService;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.github.benmanes.caffeine.cache.Cache;
@@ -30,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -49,6 +54,8 @@ public class BorrowServiceImpl implements BorrowService {
     private final SysCaseMapper sysCaseMapper;
     private final SysFileMapper sysFileMapper;
     private final StorageService storageService;
+    private final WatermarkService watermarkService;
+    private final SysUserMapper sysUserMapper;
     private final Cache<String, BorrowTokenCache> borrowTokenCache;
 
     public BorrowServiceImpl(SysBorrowApplyMapper sysBorrowApplyMapper,
@@ -57,6 +64,8 @@ public class BorrowServiceImpl implements BorrowService {
                              SysCaseMapper sysCaseMapper,
                              SysFileMapper sysFileMapper,
                              StorageService storageService,
+                             WatermarkService watermarkService,
+                             SysUserMapper sysUserMapper,
                              Cache<String, BorrowTokenCache> borrowTokenCache) {
         this.sysBorrowApplyMapper = sysBorrowApplyMapper;
         this.sysBorrowApprovalMapper = sysBorrowApprovalMapper;
@@ -64,6 +73,8 @@ public class BorrowServiceImpl implements BorrowService {
         this.sysCaseMapper = sysCaseMapper;
         this.sysFileMapper = sysFileMapper;
         this.storageService = storageService;
+        this.watermarkService = watermarkService;
+        this.sysUserMapper = sysUserMapper;
         this.borrowTokenCache = borrowTokenCache;
     }
 
@@ -185,7 +196,7 @@ public class BorrowServiceImpl implements BorrowService {
     }
 
     @Override
-    public String download(Long id, BorrowDownloadRequest request) {
+    public FileStreamVO download(Long id, BorrowDownloadRequest request) {
         SysBorrowApply apply = requireApply(id);
         if (!"ACTIVE".equals(apply.getStatus())) {
             throw new BusinessException(ResultCode.FORBIDDEN, "借阅未生效或已失效");
@@ -214,7 +225,17 @@ public class BorrowServiceImpl implements BorrowService {
         if (file == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "文件不存在");
         }
-        return storageService.presignedGetUrl(file.getStorageBucket(), file.getStoragePath());
+        if (watermarkService.supports(file.getMimeType())) {
+            InputStream source = storageService.getObject(file.getStorageBucket(), file.getStoragePath());
+            String text = watermarkService.buildText("已归档", currentUsername());
+            InputStream watermarked = "application/pdf".equals(file.getMimeType())
+                    ? watermarkService.watermarkPdf(source, text)
+                    : watermarkService.watermarkImage(source, file.getMimeType(), text);
+            return new FileStreamVO(watermarked, null, file.getMimeType(), file.getFileName());
+        }
+        return new FileStreamVO(null,
+                storageService.presignedGetUrl(file.getStorageBucket(), file.getStoragePath()),
+                file.getMimeType(), file.getFileName());
     }
 
     @Override
@@ -321,6 +342,15 @@ public class BorrowServiceImpl implements BorrowService {
         } catch (Exception e) {
             throw new BusinessException(ResultCode.UNAUTHORIZED, "未登录");
         }
+    }
+
+    private String currentUsername() {
+        Long userId = currentUserId();
+        if (userId == null) {
+            return "系统";
+        }
+        SysUser user = sysUserMapper.selectById(userId);
+        return user == null ? "未知" : user.getUsername();
     }
 
     private BorrowApplyVO toVO(SysBorrowApply entity) {

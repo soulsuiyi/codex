@@ -5,6 +5,7 @@ import com.archive.common.dto.BorrowApplyVO;
 import com.archive.common.dto.BorrowApprovalRequest;
 import com.archive.common.dto.BorrowDownloadRequest;
 import com.archive.common.dto.BorrowTokenVO;
+import com.archive.common.dto.FileStreamVO;
 import com.archive.common.dto.PageResult;
 
 /**
@@ -33,9 +34,9 @@ public interface BorrowService {
     BorrowTokenVO token(Long id);
 
     /**
-     * 借阅下载（校验 Token、有效期、下载权限、授权文件）。
+     * 借阅下载（校验 Token、有效期、下载权限、授权文件；图片/PDF 返回带水印流）。
      */
-    String download(Long id, BorrowDownloadRequest request);
+    FileStreamVO download(Long id, BorrowDownloadRequest request);
 
     /**
      * 归还借阅并撤销 Token。

@@ -1,6 +1,7 @@
 package com.archive.core.service;
 
 import com.archive.common.dto.FileVO;
+import com.archive.common.dto.FileStreamVO;
 import com.archive.common.dto.VersionListVO;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -37,14 +38,14 @@ public interface FileService {
     List<FileVO> listByCaseNo(String caseNo);
 
     /**
-     * 生成文件下载 Pre-signed URL（5 分钟有效）。
+     * 预览流：图片/PDF 返回带水印流，其他类型 400。
      */
-    String downloadUrl(Long fileId);
+    FileStreamVO previewStream(Long fileId);
 
     /**
-     * 文件预览 URL（仅 PDF/图片返回，其他类型 400）。
+     * 下载：图片/PDF 返回带水印流，其他类型返回 Pre-signed URL。
      */
-    String previewUrl(Long fileId);
+    FileStreamVO downloadStream(Long fileId);
 
     /**
      * 文件版本列表（当前文件 + 历史版本）。

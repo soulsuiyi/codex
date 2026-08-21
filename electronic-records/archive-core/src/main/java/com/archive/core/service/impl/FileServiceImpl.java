@@ -2,10 +2,13 @@ package com.archive.core.service.impl;
 
 import cn.dev33.satoken.stp.StpUtil;
 import com.archive.common.dto.FileVersionVO;
+import com.archive.common.dto.FileStreamVO;
 import com.archive.common.dto.FileVO;
 import com.archive.common.dto.VersionListVO;
 import com.archive.common.exception.BusinessException;
 import com.archive.common.response.ResultCode;
+import com.archive.auth.entity.SysUser;
+import com.archive.auth.mapper.SysUserMapper;
 import com.archive.core.entity.SysCase;
 import com.archive.core.entity.SysFile;
 import com.archive.core.entity.SysFileVersion;
@@ -15,6 +18,7 @@ import com.archive.core.mapper.SysFileMapper;
 import com.archive.core.mapper.SysFileVersionMapper;
 import com.archive.core.service.FileService;
 import com.archive.core.service.StorageService;
+import com.archive.core.service.WatermarkService;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +57,8 @@ public class FileServiceImpl implements FileService {
     private final SysFileVersionMapper sysFileVersionMapper;
     private final SysCaseMapper sysCaseMapper;
     private final StorageService storageService;
+    private final WatermarkService watermarkService;
+    private final SysUserMapper sysUserMapper;
     private final ApplicationEventPublisher applicationEventPublisher;
 
     @Value("${minio.buckets.transit}")
@@ -62,11 +68,15 @@ public class FileServiceImpl implements FileService {
                            SysFileVersionMapper sysFileVersionMapper,
                            SysCaseMapper sysCaseMapper,
                            StorageService storageService,
+                           WatermarkService watermarkService,
+                           SysUserMapper sysUserMapper,
                            ApplicationEventPublisher applicationEventPublisher) {
         this.sysFileMapper = sysFileMapper;
         this.sysFileVersionMapper = sysFileVersionMapper;
         this.sysCaseMapper = sysCaseMapper;
         this.storageService = storageService;
+        this.watermarkService = watermarkService;
+        this.sysUserMapper = sysUserMapper;
         this.applicationEventPublisher = applicationEventPublisher;
     }
 
@@ -218,19 +228,23 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
-    public String downloadUrl(Long fileId) {
+    public FileStreamVO previewStream(Long fileId) {
         SysFile file = requireFile(fileId);
-        return storageService.presignedGetUrl(file.getStorageBucket(), file.getStoragePath());
+        if (!watermarkService.supports(file.getMimeType())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "暂不支持预览该文件类型");
+        }
+        return buildStream(file, watermarkText(file));
     }
 
     @Override
-    public String previewUrl(Long fileId) {
+    public FileStreamVO downloadStream(Long fileId) {
         SysFile file = requireFile(fileId);
-        String mimeType = file.getMimeType();
-        if (mimeType == null || (!mimeType.startsWith("image/") && !"application/pdf".equals(mimeType))) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "暂不支持预览该文件类型");
+        if (!watermarkService.supports(file.getMimeType())) {
+            return new FileStreamVO(null,
+                    storageService.presignedGetUrl(file.getStorageBucket(), file.getStoragePath()),
+                    file.getMimeType(), file.getFileName());
         }
-        return storageService.presignedGetUrl(file.getStorageBucket(), file.getStoragePath());
+        return buildStream(file, watermarkText(file));
     }
 
     @Override
@@ -411,6 +425,28 @@ public class FileServiceImpl implements FileService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private FileStreamVO buildStream(SysFile file, String text) {
+        InputStream source = storageService.getObject(file.getStorageBucket(), file.getStoragePath());
+        InputStream watermarked = "application/pdf".equals(file.getMimeType())
+                ? watermarkService.watermarkPdf(source, text)
+                : watermarkService.watermarkImage(source, file.getMimeType(), text);
+        return new FileStreamVO(watermarked, null, file.getMimeType(), file.getFileName());
+    }
+
+    private String watermarkText(SysFile file) {
+        String prefix = "STAGING".equals(file.getStage()) ? "办案中" : "已归档";
+        return watermarkService.buildText(prefix, currentUsername());
+    }
+
+    private String currentUsername() {
+        Long userId = currentUserId();
+        if (userId == null) {
+            return "系统";
+        }
+        SysUser user = sysUserMapper.selectById(userId);
+        return user == null ? "未知" : user.getUsername();
     }
 
     private FileVO toVO(SysFile entity, String caseNo) {
