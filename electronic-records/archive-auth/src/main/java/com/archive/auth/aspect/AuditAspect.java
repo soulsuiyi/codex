@@ -8,6 +8,7 @@ import com.archive.auth.mapper.SysUserMapper;
 import com.archive.common.annotation.AuditLog;
 import com.archive.common.dto.CaseVO;
 import com.archive.common.dto.FileVO;
+import com.archive.common.dto.ArchiveVO;
 import com.archive.common.response.Result;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -74,6 +75,8 @@ public class AuditAspect {
                 audit.setTargetId(String.valueOf(caseVO.getId()));
             } else if (data instanceof FileVO fileVO && fileVO.getId() != null) {
                 audit.setTargetId(String.valueOf(fileVO.getId()));
+            } else if (data instanceof ArchiveVO archiveVO && archiveVO.getId() != null) {
+                audit.setTargetId(String.valueOf(archiveVO.getId()));
             } else {
                 audit.setTargetId(extractTargetId(joinPoint));
             }

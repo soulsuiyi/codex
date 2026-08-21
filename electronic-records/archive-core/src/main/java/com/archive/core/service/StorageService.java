@@ -18,6 +18,11 @@ public interface StorageService {
     void putFile(String bucket, String objectName, InputStream inputStream, long size, String contentType);
 
     /**
+     * 复制对象（服务端复制，不经过本地）。
+     */
+    void copyObject(String sourceBucket, String sourceObject, String targetBucket, String targetObject);
+
+    /**
      * 生成 GET 预签名 URL（5 分钟有效）。
      */
     String presignedGetUrl(String bucket, String objectName);

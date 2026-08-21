@@ -2,6 +2,8 @@ package com.archive.core.service.impl;
 
 import com.archive.core.service.StorageService;
 import io.minio.BucketExistsArgs;
+import io.minio.CopyObjectArgs;
+import io.minio.CopySource;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.GetObjectArgs;
 import io.minio.MakeBucketArgs;
@@ -67,6 +69,20 @@ public class StorageServiceImpl implements StorageService {
                     .build());
         } catch (Exception e) {
             throw new IllegalStateException("MinIO 上传失败: " + bucket + "/" + objectName, e);
+        }
+    }
+
+    @Override
+    public void copyObject(String sourceBucket, String sourceObject, String targetBucket, String targetObject) {
+        try {
+            minioClient.copyObject(CopyObjectArgs.builder()
+                    .source(CopySource.builder().bucket(sourceBucket).object(sourceObject).build())
+                    .bucket(targetBucket)
+                    .object(targetObject)
+                    .build());
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "MinIO 对象复制失败: " + sourceBucket + "/" + sourceObject + " -> " + targetBucket + "/" + targetObject, e);
         }
     }
 
