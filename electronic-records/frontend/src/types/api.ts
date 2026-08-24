@@ -165,3 +165,122 @@ export interface SearchResultVO {
   file: FileVO
   snippet: string
 }
+
+// ---------- 系统管理 ----------
+export interface UserVO {
+  id: number
+  username: string
+  realName?: string
+  phone?: string
+  email?: string
+  deptId?: number
+  status: number
+  lastLoginTime?: string
+  createdAt?: string
+  updatedAt?: string
+  roleIds?: number[]
+  roleCodes?: string[]
+}
+
+export interface UserCreateRequest {
+  username: string
+  password: string
+  realName?: string
+  phone?: string
+  email?: string
+  deptId?: number
+  status?: number
+  roleIds?: number[]
+}
+
+export interface UserUpdateRequest {
+  realName?: string
+  phone?: string
+  email?: string
+  deptId?: number
+  status?: number
+  roleIds?: number[]
+}
+
+export interface RoleVO {
+  id: number
+  roleCode: string
+  roleName: string
+  description?: string
+  createdAt?: string
+}
+
+export interface RoleRequest {
+  roleCode: string
+  roleName: string
+  description?: string
+}
+
+export type MenuType = 'M' | 'C' | 'B'
+
+export interface MenuVO {
+  id: number
+  parentId: number
+  menuName: string
+  menuType: MenuType
+  perms?: string
+  path?: string
+  component?: string
+  sortOrder?: number
+  visible?: number
+  children?: MenuVO[]
+}
+
+export interface MenuRequest {
+  parentId?: number
+  menuName: string
+  menuType: MenuType
+  perms?: string
+  path?: string
+  component?: string
+  sortOrder?: number
+  visible?: number
+}
+
+export interface DictVO {
+  id: number
+  dictType: string
+  dictCode: string
+  dictLabel: string
+  dictValue: string
+  sortOrder?: number
+  remark?: string
+}
+
+export interface DictRequest {
+  dictType: string
+  dictCode: string
+  dictLabel: string
+  dictValue: string
+  sortOrder?: number
+  remark?: string
+}
+
+export interface ApiKeyVO {
+  id: number
+  appName: string
+  apiKey: string
+  apiSecret?: string
+  ipWhitelist?: string
+  status: number
+  expireTime?: string
+  createdAt?: string
+}
+
+export interface ApiKeyCreateRequest {
+  appName: string
+  ipWhitelist?: string
+  expireTime?: string
+}
+
+export interface ApiKeyUpdateRequest {
+  appName?: string
+  ipWhitelist?: string
+  status?: number
+  expireTime?: string
+}

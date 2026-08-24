@@ -29,6 +29,17 @@
           <el-icon><Search /></el-icon>
           <span>全文检索</span>
         </el-menu-item>
+        <el-sub-menu index="/system">
+          <template #title>
+            <el-icon><Setting /></el-icon>
+            <span>系统管理</span>
+          </template>
+          <el-menu-item index="/system/users">用户管理</el-menu-item>
+          <el-menu-item index="/system/roles">角色管理</el-menu-item>
+          <el-menu-item index="/system/menus">菜单管理</el-menu-item>
+          <el-menu-item index="/system/dicts">字典管理</el-menu-item>
+          <el-menu-item index="/system/api-keys">API 密钥</el-menu-item>
+        </el-sub-menu>
       </el-menu>
     </el-aside>
     <el-container>
@@ -57,7 +68,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Files, FolderOpened, HomeFilled, Reading, Search, User } from '@element-plus/icons-vue'
+import { Files, FolderOpened, HomeFilled, Reading, Search, Setting, User } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 
 const route = useRoute()

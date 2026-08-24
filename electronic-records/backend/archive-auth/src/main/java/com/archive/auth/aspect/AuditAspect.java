@@ -9,7 +9,12 @@ import com.archive.common.annotation.AuditLog;
 import com.archive.common.dto.CaseVO;
 import com.archive.common.dto.FileVO;
 import com.archive.common.dto.ArchiveVO;
+import com.archive.common.dto.ApiKeyVO;
 import com.archive.common.dto.BorrowApplyVO;
+import com.archive.common.dto.DictVO;
+import com.archive.common.dto.MenuVO;
+import com.archive.common.dto.RoleVO;
+import com.archive.common.dto.UserVO;
 import com.archive.common.response.Result;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -80,6 +85,16 @@ public class AuditAspect {
                 audit.setTargetId(String.valueOf(archiveVO.getId()));
             } else if (data instanceof BorrowApplyVO borrowApplyVO && borrowApplyVO.getId() != null) {
                 audit.setTargetId(String.valueOf(borrowApplyVO.getId()));
+            } else if (data instanceof UserVO userVO && userVO.getId() != null) {
+                audit.setTargetId(String.valueOf(userVO.getId()));
+            } else if (data instanceof RoleVO roleVO && roleVO.getId() != null) {
+                audit.setTargetId(String.valueOf(roleVO.getId()));
+            } else if (data instanceof MenuVO menuVO && menuVO.getId() != null) {
+                audit.setTargetId(String.valueOf(menuVO.getId()));
+            } else if (data instanceof DictVO dictVO && dictVO.getId() != null) {
+                audit.setTargetId(String.valueOf(dictVO.getId()));
+            } else if (data instanceof ApiKeyVO apiKeyVO && apiKeyVO.getId() != null) {
+                audit.setTargetId(String.valueOf(apiKeyVO.getId()));
             } else {
                 audit.setTargetId(extractTargetId(joinPoint));
             }
