@@ -4,6 +4,7 @@ import com.archive.common.annotation.AuditLog;
 import com.archive.common.dto.BorrowApplyRequest;
 import com.archive.common.dto.BorrowApplyVO;
 import com.archive.common.dto.BorrowApprovalRequest;
+import com.archive.common.dto.BorrowDetailVO;
 import com.archive.common.dto.BorrowDownloadRequest;
 import com.archive.common.dto.BorrowTokenVO;
 import com.archive.common.dto.FileStreamVO;
@@ -50,6 +51,19 @@ public class BorrowController {
     public Result<PageResult<BorrowApplyVO>> my(@RequestParam(defaultValue = "1") long page,
                                                 @RequestParam(defaultValue = "10") long size) {
         return Result.success(borrowService.myList(page, size));
+    }
+
+    @GetMapping("/pending")
+    @Operation(summary = "待我审批列表", description = "仲裁秘书见初审申请，档案管理员见终审申请，管理员两者可见")
+    public Result<PageResult<BorrowApplyVO>> pending(@RequestParam(defaultValue = "1") long page,
+                                                     @RequestParam(defaultValue = "10") long size) {
+        return Result.success(borrowService.pendingList(page, size));
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "借阅申请详情", description = "本人或审批人可查看，含借阅文件与审批记录")
+    public Result<BorrowDetailVO> detail(@PathVariable Long id) {
+        return Result.success(borrowService.detail(id));
     }
 
     @PostMapping("/{id}/approve")

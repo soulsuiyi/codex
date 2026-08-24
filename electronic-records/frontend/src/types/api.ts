@@ -128,6 +128,7 @@ export interface BorrowApplyVO {
   id: number
   caseId: number
   caseNo: string
+  applicantName?: string
   fileIds: number[]
   reason?: string
   needDownload?: boolean
@@ -135,6 +136,22 @@ export interface BorrowApplyVO {
   status: BorrowStatus
   createdAt?: string
   updatedAt?: string
+}
+
+export interface BorrowApprovalVO {
+  id: number
+  approverId: number
+  approverName?: string
+  approvalStep: 'SECRETARY' | 'ADMIN'
+  result: ApprovalResult
+  comment?: string
+  createdAt?: string
+}
+
+export interface BorrowDetailVO {
+  apply: BorrowApplyVO
+  files: FileVO[]
+  approvals: BorrowApprovalVO[]
 }
 
 export interface BorrowApplyRequest {

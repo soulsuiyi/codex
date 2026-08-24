@@ -57,6 +57,7 @@ class BorrowFlowTest {
     private static final String SECRETARY_USERNAME = "borrow_secretary";
     private static final String ARCHIVIST_USERNAME = "borrow_archivist";
     private static final String HANDLER_USERNAME = "borrow_handler";
+    private static final String OTHER_HANDLER_USERNAME = "borrow_other_handler";
 
     @Autowired
     private TestRestTemplate restTemplate;
@@ -222,6 +223,72 @@ class BorrowFlowTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void pendingAndDetailFlow() {
+        String adminToken = login();
+        String caseNo = createCase("BORROW-TEST-" + System.currentTimeMillis());
+        Long fileId = upload(adminToken, caseNo, "borrow.txt", FILE_BYTES);
+        archiveCase(adminToken, caseNo);
+
+        String handlerToken = login(HANDLER_USERNAME);
+        Long applyId = applyId(handlerToken, caseNo, List.of(fileId), true);
+
+        // 非本人且非审批人查看详情 → 403
+        String otherHandlerToken = login(OTHER_HANDLER_USERNAME);
+        ResponseEntity<Map> forbidden = restTemplate.exchange(
+                "/api/v1/borrows/" + applyId, HttpMethod.GET,
+                new HttpEntity<>(authHeaders(otherHandlerToken)), Map.class);
+        assertThat(code(forbidden)).isEqualTo(403);
+
+        // 申请人本人可查看详情（含文件、无审批记录）
+        ResponseEntity<Map> ownerDetail = restTemplate.exchange(
+                "/api/v1/borrows/" + applyId, HttpMethod.GET,
+                new HttpEntity<>(authHeaders(handlerToken)), Map.class);
+        assertThat(code(ownerDetail)).isEqualTo(200);
+        Map<String, Object> detailData = (Map<String, Object>) ownerDetail.getBody().get("data");
+        assertThat(((Map<String, Object>) detailData.get("apply")).get("status")).isEqualTo("PENDING_SECRETARY");
+        assertThat((List<Map<String, Object>>) detailData.get("files"))
+                .anyMatch(f -> ((Number) f.get("id")).longValue() == fileId);
+        assertThat((List<Map<String, Object>>) detailData.get("approvals")).isEmpty();
+
+        // 待我审批：秘书与管理员可见，办案人员不可见
+        assertPendingContains(login(SECRETARY_USERNAME), applyId, true);
+        assertPendingContains(login(), applyId, true);
+        assertPendingContains(otherHandlerToken, applyId, false);
+        assertPendingContains(login(ARCHIVIST_USERNAME), applyId, false);
+
+        // 秘书初审通过
+        String secretaryToken = login(SECRETARY_USERNAME);
+        approve(applyId, secretaryToken, "APPROVED", "同意初审");
+
+        // 初审后：秘书待办清空，档案管理员待办出现
+        assertPendingContains(secretaryToken, applyId, false);
+        assertPendingContains(login(ARCHIVIST_USERNAME), applyId, true);
+
+        // 详情包含一条审批记录
+        ResponseEntity<Map> detail2 = restTemplate.exchange(
+                "/api/v1/borrows/" + applyId, HttpMethod.GET,
+                new HttpEntity<>(authHeaders(handlerToken)), Map.class);
+        List<Map<String, Object>> approvals = (List<Map<String, Object>>)
+                ((Map<String, Object>) detail2.getBody().get("data")).get("approvals");
+        assertThat(approvals).hasSize(1);
+        assertThat(approvals.get(0).get("approvalStep")).isEqualTo("SECRETARY");
+        assertThat(approvals.get(0).get("result")).isEqualTo("APPROVED");
+        assertThat(approvals.get(0).get("approverName")).isNotNull();
+
+        // 档案管理员终审通过
+        approve(applyId, login(ARCHIVIST_USERNAME), "APPROVED", "同意终审");
+        assertPendingContains(login(ARCHIVIST_USERNAME), applyId, false);
+
+        // 审批记录两条
+        ResponseEntity<Map> detail3 = restTemplate.exchange(
+                "/api/v1/borrows/" + applyId, HttpMethod.GET,
+                new HttpEntity<>(authHeaders(handlerToken)), Map.class);
+        assertThat((List<Map<String, Object>>)
+                ((Map<String, Object>) detail3.getBody().get("data")).get("approvals")).hasSize(2);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void expireFlow() {
         String adminToken = login();
         String caseNo = createCase("BORROW-TEST-" + System.currentTimeMillis());
@@ -288,6 +355,18 @@ class BorrowFlowTest {
         body.put("tokenValue", tokenValue);
         body.put("fileId", fileId);
         return body;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void assertPendingContains(String token, Long applyId, boolean expected) {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/api/v1/borrows/pending?page=1&size=50", HttpMethod.GET,
+                new HttpEntity<>(authHeaders(token)), Map.class);
+        assertThat(code(response)).isEqualTo(200);
+        List<Map<String, Object>> records = (List<Map<String, Object>>)
+                ((Map<String, Object>) response.getBody().get("data")).get("records");
+        boolean contains = records.stream().anyMatch(r -> ((Number) r.get("id")).longValue() == applyId);
+        assertThat(contains).isEqualTo(expected);
     }
 
     private void archiveCase(String token, String caseNo) {
@@ -410,7 +489,8 @@ class BorrowFlowTest {
                 + "(SELECT id FROM sys_case WHERE case_no LIKE 'BORROW-TEST-%')");
         jdbcTemplate.update("DELETE FROM sys_case WHERE case_no LIKE 'BORROW-TEST-%'");
         jdbcTemplate.update("DELETE FROM sys_case_category WHERE name = 'BORROW测试分类'");
-        for (String username : new String[]{SECRETARY_USERNAME, ARCHIVIST_USERNAME, HANDLER_USERNAME}) {
+        for (String username : new String[]{
+                SECRETARY_USERNAME, ARCHIVIST_USERNAME, HANDLER_USERNAME, OTHER_HANDLER_USERNAME}) {
             SysUser user = sysUserMapper.selectOne(
                     Wrappers.<SysUser>lambdaQuery().eq(SysUser::getUsername, username));
             if (user != null) {

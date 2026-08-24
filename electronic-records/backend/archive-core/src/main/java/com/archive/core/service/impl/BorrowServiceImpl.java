@@ -4,13 +4,17 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.archive.common.dto.BorrowApplyRequest;
 import com.archive.common.dto.BorrowApplyVO;
 import com.archive.common.dto.BorrowApprovalRequest;
+import com.archive.common.dto.BorrowApprovalVO;
+import com.archive.common.dto.BorrowDetailVO;
 import com.archive.common.dto.BorrowDownloadRequest;
 import com.archive.common.dto.BorrowTokenVO;
+import com.archive.common.dto.FileVO;
 import com.archive.common.dto.PageResult;
 import com.archive.common.dto.FileStreamVO;
 import com.archive.common.exception.BusinessException;
 import com.archive.common.response.ResultCode;
 import com.archive.auth.entity.SysUser;
+import com.archive.auth.mapper.SysRoleMapper;
 import com.archive.auth.mapper.SysUserMapper;
 import com.archive.core.cache.BorrowTokenCache;
 import com.archive.core.entity.SysBorrowApply;
@@ -56,6 +60,7 @@ public class BorrowServiceImpl implements BorrowService {
     private final StorageService storageService;
     private final WatermarkService watermarkService;
     private final SysUserMapper sysUserMapper;
+    private final SysRoleMapper sysRoleMapper;
     private final Cache<String, BorrowTokenCache> borrowTokenCache;
 
     public BorrowServiceImpl(SysBorrowApplyMapper sysBorrowApplyMapper,
@@ -66,6 +71,7 @@ public class BorrowServiceImpl implements BorrowService {
                              StorageService storageService,
                              WatermarkService watermarkService,
                              SysUserMapper sysUserMapper,
+                             SysRoleMapper sysRoleMapper,
                              Cache<String, BorrowTokenCache> borrowTokenCache) {
         this.sysBorrowApplyMapper = sysBorrowApplyMapper;
         this.sysBorrowApprovalMapper = sysBorrowApprovalMapper;
@@ -75,6 +81,7 @@ public class BorrowServiceImpl implements BorrowService {
         this.storageService = storageService;
         this.watermarkService = watermarkService;
         this.sysUserMapper = sysUserMapper;
+        this.sysRoleMapper = sysRoleMapper;
         this.borrowTokenCache = borrowTokenCache;
     }
 
@@ -129,6 +136,66 @@ public class BorrowServiceImpl implements BorrowService {
                         .orderByDesc(SysBorrowApply::getCreatedAt));
         List<BorrowApplyVO> records = result.getRecords().stream().map(this::toVO).toList();
         return new PageResult<>(records, result.getTotal(), result.getCurrent(), result.getSize());
+    }
+
+    @Override
+    public PageResult<BorrowApplyVO> pendingList(long page, long size) {
+        List<String> roles = sysRoleMapper.selectRoleCodesByUserId(currentUserId());
+        Set<String> statuses = new HashSet<>();
+        if (roles.contains("SECRETARY") || roles.contains("ADMIN")) {
+            statuses.add("PENDING_SECRETARY");
+        }
+        if (roles.contains("ARCHIVIST") || roles.contains("ADMIN")) {
+            statuses.add("PENDING_ADMIN");
+        }
+        if (statuses.isEmpty()) {
+            return new PageResult<>(List.of(), 0, Math.max(page, 1), Math.max(size, 1));
+        }
+        Page<SysBorrowApply> result = sysBorrowApplyMapper.selectPage(
+                new Page<>(Math.max(page, 1), Math.max(size, 1)),
+                Wrappers.<SysBorrowApply>lambdaQuery()
+                        .in(SysBorrowApply::getStatus, statuses)
+                        .orderByAsc(SysBorrowApply::getCreatedAt));
+        List<BorrowApplyVO> records = result.getRecords().stream().map(this::toVO).toList();
+        return new PageResult<>(records, result.getTotal(), result.getCurrent(), result.getSize());
+    }
+
+    @Override
+    public BorrowDetailVO detail(Long id) {
+        SysBorrowApply apply = requireApply(id);
+        Long userId = currentUserId();
+        boolean owner = userId.equals(apply.getApplicantId());
+        List<String> roles = sysRoleMapper.selectRoleCodesByUserId(userId);
+        boolean approver = roles.contains("SECRETARY")
+                || roles.contains("ARCHIVIST")
+                || roles.contains("ADMIN");
+        if (!owner && !approver) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "无权查看他人借阅详情");
+        }
+
+        List<FileVO> files = List.of();
+        if (StringUtils.hasText(apply.getFileIds())) {
+            List<Long> fileIds = Arrays.stream(apply.getFileIds().split(","))
+                    .filter(StringUtils::hasText)
+                    .map(Long::valueOf)
+                    .toList();
+            files = sysFileMapper.selectBatchIds(fileIds).stream()
+                    .map(file -> toFileVO(file, apply.getCaseNo()))
+                    .toList();
+        }
+        List<BorrowApprovalVO> approvals = sysBorrowApprovalMapper.selectList(
+                        Wrappers.<SysBorrowApproval>lambdaQuery()
+                                .eq(SysBorrowApproval::getApplyId, id)
+                                .orderByAsc(SysBorrowApproval::getCreatedAt))
+                .stream()
+                .map(this::toApprovalVO)
+                .toList();
+
+        BorrowDetailVO detail = new BorrowDetailVO();
+        detail.setApply(toVO(apply));
+        detail.setFiles(files);
+        detail.setApprovals(approvals);
+        return detail;
     }
 
     @Override
@@ -358,6 +425,14 @@ public class BorrowServiceImpl implements BorrowService {
         vo.setId(entity.getId());
         vo.setCaseId(entity.getCaseId());
         vo.setCaseNo(entity.getCaseNo());
+        if (entity.getApplicantId() != null) {
+            SysUser applicant = sysUserMapper.selectById(entity.getApplicantId());
+            if (applicant != null) {
+                vo.setApplicantName(StringUtils.hasText(applicant.getRealName())
+                        ? applicant.getRealName()
+                        : applicant.getUsername());
+            }
+        }
         if (StringUtils.hasText(entity.getFileIds())) {
             vo.setFileIds(Arrays.stream(entity.getFileIds().split(","))
                     .filter(StringUtils::hasText)
@@ -370,6 +445,42 @@ public class BorrowServiceImpl implements BorrowService {
         vo.setStatus(entity.getStatus());
         vo.setCreatedAt(entity.getCreatedAt());
         vo.setUpdatedAt(entity.getUpdatedAt());
+        return vo;
+    }
+
+    private FileVO toFileVO(SysFile file, String caseNo) {
+        FileVO vo = new FileVO();
+        vo.setId(file.getId());
+        vo.setCaseId(file.getCaseId());
+        vo.setCaseNo(caseNo);
+        vo.setFileName(file.getFileName());
+        vo.setFileSize(file.getFileSize());
+        vo.setMimeType(file.getMimeType());
+        vo.setStorageBucket(file.getStorageBucket());
+        vo.setStage(file.getStage());
+        vo.setVersion(file.getVersion());
+        vo.setIsLatest(file.getIsLatest());
+        vo.setCreatedAt(file.getCreatedAt());
+        vo.setUpdatedAt(file.getUpdatedAt());
+        return vo;
+    }
+
+    private BorrowApprovalVO toApprovalVO(SysBorrowApproval approval) {
+        BorrowApprovalVO vo = new BorrowApprovalVO();
+        vo.setId(approval.getId());
+        vo.setApproverId(approval.getApproverId());
+        if (approval.getApproverId() != null) {
+            SysUser approver = sysUserMapper.selectById(approval.getApproverId());
+            if (approver != null) {
+                vo.setApproverName(StringUtils.hasText(approver.getRealName())
+                        ? approver.getRealName()
+                        : approver.getUsername());
+            }
+        }
+        vo.setApprovalStep(approval.getApprovalStep());
+        vo.setResult(approval.getResult());
+        vo.setComment(approval.getComment());
+        vo.setCreatedAt(approval.getCreatedAt());
         return vo;
     }
 }

@@ -3,6 +3,7 @@ package com.archive.core.service;
 import com.archive.common.dto.BorrowApplyRequest;
 import com.archive.common.dto.BorrowApplyVO;
 import com.archive.common.dto.BorrowApprovalRequest;
+import com.archive.common.dto.BorrowDetailVO;
 import com.archive.common.dto.BorrowDownloadRequest;
 import com.archive.common.dto.BorrowTokenVO;
 import com.archive.common.dto.FileStreamVO;
@@ -22,6 +23,16 @@ public interface BorrowService {
      * 我的借阅申请列表。
      */
     PageResult<BorrowApplyVO> myList(long page, long size);
+
+    /**
+     * 待我审批列表：按当前用户角色返回对应待审状态（SECRETARY→初审，ARCHIVIST/ADMIN→终审，ADMIN 两者可见）。
+     */
+    PageResult<BorrowApplyVO> pendingList(long page, long size);
+
+    /**
+     * 借阅申请详情（本人或审批人可查看），含借阅文件与审批记录。
+     */
+    BorrowDetailVO detail(Long id);
 
     /**
      * 审批：PENDING_SECRETARY 由 SECRETARY、PENDING_ADMIN 由 ARCHIVIST 处理。

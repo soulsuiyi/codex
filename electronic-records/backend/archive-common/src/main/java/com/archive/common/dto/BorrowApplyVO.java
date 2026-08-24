@@ -14,6 +14,8 @@ public class BorrowApplyVO implements Serializable {
     private Long id;
     private Long caseId;
     private String caseNo;
+    /** 申请人姓名（冗余展示，便于审批工作台） */
+    private String applicantName;
     private List<Long> fileIds;
     private String reason;
     private Boolean needDownload;
@@ -44,6 +46,14 @@ public class BorrowApplyVO implements Serializable {
 
     public void setCaseNo(String caseNo) {
         this.caseNo = caseNo;
+    }
+
+    public String getApplicantName() {
+        return applicantName;
+    }
+
+    public void setApplicantName(String applicantName) {
+        this.applicantName = applicantName;
     }
 
     public List<Long> getFileIds() {

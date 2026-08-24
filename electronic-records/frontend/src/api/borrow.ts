@@ -3,6 +3,7 @@ import type {
   BorrowApplyRequest,
   BorrowApplyVO,
   BorrowApprovalRequest,
+  BorrowDetailVO,
   BorrowDownloadRequest,
   BorrowTokenVO,
   PageResult,
@@ -14,6 +15,14 @@ export function applyBorrow(data: BorrowApplyRequest): Promise<BorrowApplyVO> {
 
 export function myBorrows(page = 1, size = 10): Promise<PageResult<BorrowApplyVO>> {
   return get<PageResult<BorrowApplyVO>>('/borrows/my', { page, size })
+}
+
+export function pendingBorrows(page = 1, size = 10): Promise<PageResult<BorrowApplyVO>> {
+  return get<PageResult<BorrowApplyVO>>('/borrows/pending', { page, size })
+}
+
+export function borrowDetail(id: number): Promise<BorrowDetailVO> {
+  return get<BorrowDetailVO>(`/borrows/${id}`)
 }
 
 export function approveBorrow(id: number, data: BorrowApprovalRequest): Promise<BorrowApplyVO> {
