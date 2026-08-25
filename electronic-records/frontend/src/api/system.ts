@@ -3,6 +3,7 @@ import type {
   ApiKeyCreateRequest,
   ApiKeyUpdateRequest,
   ApiKeyVO,
+  AuditLogVO,
   DictRequest,
   DictVO,
   MenuRequest,
@@ -110,4 +111,20 @@ export function updateApiKey(id: number, data: ApiKeyUpdateRequest): Promise<Api
 
 export function deleteApiKey(id: number): Promise<void> {
   return del<void>(`/system/api-keys/${id}`)
+}
+
+// ---------- 操作审计日志 ----------
+export interface AuditLogQuery {
+  page?: number
+  size?: number
+  module?: string
+  action?: string
+  username?: string
+  result?: string
+  startTime?: string
+  endTime?: string
+}
+
+export function listAuditLogs(params: AuditLogQuery): Promise<PageResult<AuditLogVO>> {
+  return get<PageResult<AuditLogVO>>('/system/audit-logs', params)
 }

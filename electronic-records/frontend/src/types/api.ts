@@ -306,3 +306,18 @@ export interface ApiKeyUpdateRequest {
   status?: number
   expireTime?: string
 }
+
+export interface AuditLogVO {
+  id: number
+  userId?: number
+  username?: string
+  module: string
+  action: string
+  targetType?: string
+  targetId?: string
+  ip?: string
+  userAgent?: string
+  detail?: string
+  result: 'SUCCESS' | 'FAILED'
+  createdAt?: string
+}

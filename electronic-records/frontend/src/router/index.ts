@@ -87,6 +87,12 @@ const router = createRouter({
           component: () => import('@/views/system/ApiKeyListView.vue'),
           meta: { title: 'API 密钥' },
         },
+        {
+          path: 'system/audit-logs',
+          name: 'system-audit-logs',
+          component: () => import('@/views/system/AuditLogListView.vue'),
+          meta: { title: '操作日志' },
+        },
       ],
     },
     { path: '/:pathMatch(.*)*', redirect: '/' },

@@ -27,6 +27,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -385,6 +386,51 @@ class SystemFlowTest {
                 "/api/v1/system/api-keys/" + keyId, HttpMethod.DELETE,
                 new HttpEntity<>(authHeaders(token)), Map.class);
         assertThat(delete.getBody().get("code")).isEqualTo(200);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void auditLogQueryFlow() {
+        String token = login("admin", "admin123");
+
+        // 非管理员 → 403
+        createUser("SYS-TEST-AUDIT", "123456", "CASE_HANDLER");
+        String handlerToken = login("SYS-TEST-AUDIT", "123456");
+        ResponseEntity<Map> forbidden = restTemplate.exchange(
+                "/api/v1/system/audit-logs", HttpMethod.GET,
+                new HttpEntity<>(authHeaders(handlerToken)), Map.class);
+        assertThat(forbidden.getBody().get("code")).isEqualTo(403);
+
+        // 触发一条 SYSTEM 审计：新建角色
+        Map<String, Object> roleBody = new HashMap<>();
+        roleBody.put("roleCode", "SYS_TEST_AUDIT_" + System.currentTimeMillis());
+        roleBody.put("roleName", "审计测试角色");
+        ResponseEntity<Map> create = restTemplate.exchange(
+                "/api/v1/system/roles", HttpMethod.POST,
+                new HttpEntity<>(roleBody, authHeaders(token)), Map.class);
+        assertThat(create.getBody().get("code")).isEqualTo(200);
+        Long roleId = ((Number) ((Map<String, Object>) create.getBody().get("data")).get("id")).longValue();
+        awaitAuditLog("SYSTEM", "CREATE", String.valueOf(roleId));
+
+        // 组合过滤：模块 + 动作 + 操作人
+        ResponseEntity<Map> filtered = restTemplate.exchange(
+                "/api/v1/system/audit-logs?page=1&size=50&module=SYSTEM&action=CREATE&username=admin",
+                HttpMethod.GET, new HttpEntity<>(authHeaders(token)), Map.class);
+        assertThat(filtered.getBody().get("code")).isEqualTo(200);
+        Map<String, Object> page = (Map<String, Object>) filtered.getBody().get("data");
+        assertThat(((Number) page.get("total")).longValue()).isGreaterThanOrEqualTo(1);
+        List<Map<String, Object>> records = (List<Map<String, Object>>) page.get("records");
+        assertThat(records).anyMatch(r -> String.valueOf(roleId).equals(String.valueOf(r.get("targetId")))
+                && "SUCCESS".equals(r.get("result")));
+
+        // 时间范围过滤：未来时间段 → 空
+        ResponseEntity<Map> future = restTemplate.exchange(
+                URI.create("/api/v1/system/audit-logs?page=1&size=10"
+                        + "&startTime=2099-01-01%2000:00:00&endTime=2099-01-02%2000:00:00"),
+                HttpMethod.GET, new HttpEntity<>(authHeaders(token)), Map.class);
+        assertThat(future.getBody().get("code")).isEqualTo(200);
+        assertThat(((Number) ((Map<String, Object>) future.getBody().get("data")).get("total")).longValue())
+                .isZero();
     }
 
     private String login(String username, String password) {

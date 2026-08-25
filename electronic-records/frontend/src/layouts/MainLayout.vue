@@ -43,6 +43,7 @@
           <el-menu-item index="/system/menus">菜单管理</el-menu-item>
           <el-menu-item index="/system/dicts">字典管理</el-menu-item>
           <el-menu-item index="/system/api-keys">API 密钥</el-menu-item>
+          <el-menu-item index="/system/audit-logs">操作日志</el-menu-item>
         </el-sub-menu>
       </el-menu>
     </el-aside>

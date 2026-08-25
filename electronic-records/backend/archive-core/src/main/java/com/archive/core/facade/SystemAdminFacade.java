@@ -3,6 +3,7 @@ package com.archive.core.facade;
 import com.archive.common.dto.ApiKeyCreateRequest;
 import com.archive.common.dto.ApiKeyUpdateRequest;
 import com.archive.common.dto.ApiKeyVO;
+import com.archive.common.dto.AuditLogVO;
 import com.archive.common.dto.DictRequest;
 import com.archive.common.dto.DictVO;
 import com.archive.common.dto.MenuRequest;
@@ -15,6 +16,7 @@ import com.archive.common.dto.UserUpdateRequest;
 import com.archive.common.dto.UserVO;
 
 import java.util.List;
+import java.time.LocalDateTime;
 
 /**
  * 系统管理门面：向 archive-api 暴露用户/角色/菜单/字典/API Key 管理能力。
@@ -74,4 +76,9 @@ public interface SystemAdminFacade {
     ApiKeyVO updateApiKey(Long id, ApiKeyUpdateRequest request);
 
     void deleteApiKey(Long id);
+
+    // ---------- 操作审计日志 ----------
+    PageResult<AuditLogVO> pageAuditLogs(long page, long size, String module, String action,
+                                         String username, String result,
+                                         LocalDateTime startTime, LocalDateTime endTime);
 }
