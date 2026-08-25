@@ -241,6 +241,10 @@
     >
       <video ref="videoEl" controls class="video-player" />
     </el-dialog>
+
+    <el-dialog v-model="audioDialog" :title="audioTitle" width="50%" @closed="closeAudioPreview">
+      <audio ref="audioEl" controls autoplay class="audio-player" :src="audioUrl" />
+    </el-dialog>
   </el-card>
 </template>
 
@@ -324,6 +328,11 @@ const videoDialog = ref(false)
 const videoTitle = ref('')
 const videoEl = ref<HTMLVideoElement>()
 let hls: import('hls.js').default | null = null
+
+const audioDialog = ref(false)
+const audioTitle = ref('')
+const audioEl = ref<HTMLAudioElement>()
+const audioUrl = ref('')
 
 async function load() {
   if (activeTab.value === 'pending') {
@@ -477,6 +486,10 @@ async function previewBorrowFile(file: FileVO) {
     await openBorrowVideo(file)
     return
   }
+  if (file.mimeType.startsWith('audio/')) {
+    await openBorrowAudio(file)
+    return
+  }
   const res = await borrowDownload(borrowFilesRow.value.id, {
     tokenValue: borrowTokenValue.value,
     fileId: file.id,
@@ -492,6 +505,34 @@ async function previewBorrowFile(file: FileVO) {
   }
   const url = URL.createObjectURL(res)
   window.open(url, '_blank')
+}
+
+async function openBorrowAudio(file: FileVO) {
+  if (!borrowFilesRow.value) return
+  const res = await borrowDownload(borrowFilesRow.value.id, {
+    tokenValue: borrowTokenValue.value,
+    fileId: file.id,
+  })
+  let url = ''
+  if (typeof res === 'string') {
+    url = res
+  } else if (res.type.includes('json')) {
+    const parsed = JSON.parse(await res.text()) as { data?: string }
+    url = parsed.data || ''
+  } else {
+    url = URL.createObjectURL(res)
+  }
+  audioTitle.value = file.fileName
+  audioUrl.value = url
+  audioDialog.value = true
+  await nextTick()
+  audioEl.value?.play().catch(() => {
+    // 浏览器自动播放策略可能阻止，用户可手动点击播放
+  })
+}
+
+function closeAudioPreview() {
+  audioUrl.value = ''
 }
 
 async function openBorrowVideo(file: FileVO) {
@@ -581,5 +622,9 @@ onMounted(load)
   width: 100%;
   max-height: 70vh;
   background: #000;
+}
+
+.audio-player {
+  width: 100%;
 }
 </style>
