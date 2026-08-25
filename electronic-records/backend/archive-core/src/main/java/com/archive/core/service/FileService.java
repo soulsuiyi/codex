@@ -43,6 +43,16 @@ public interface FileService {
     FileStreamVO previewStream(Long fileId);
 
     /**
+     * HLS 播放列表：音视频转码（缓存）后返回 m3u8 流。
+     */
+    FileStreamVO hlsPlaylist(Long fileId);
+
+    /**
+     * HLS 分片：返回指定 ts 分片流。
+     */
+    FileStreamVO hlsSegment(Long fileId, String segment);
+
+    /**
      * 下载：图片/PDF 返回带水印流，其他类型返回 Pre-signed URL。
      */
     FileStreamVO downloadStream(Long fileId);

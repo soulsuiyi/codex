@@ -92,5 +92,7 @@ archive:
     command: ${ARCHIVE_OCR_COMMAND:tesseract}
   convert:
     command: ${ARCHIVE_OFFICE_COMMAND:soffice}
+  media:
+    ffmpeg-command: ${ARCHIVE_FFMPEG_COMMAND:ffmpeg}
   watermark:
     font-path: "${ARCHIVE_WATERMARK_FONT_PATH:C:/Windows/Fonts/simhei.ttf}"

@@ -79,13 +79,29 @@
         <canvas ref="previewCanvas" class="pdf-canvas" />
       </div>
     </el-dialog>
+
+    <el-dialog
+      v-model="videoDialog"
+      :title="videoTitle"
+      width="70%"
+      top="6vh"
+      destroy-on-close
+      @closed="closeVideoPreview"
+    >
+      <video ref="videoEl" controls class="video-player" />
+    </el-dialog>
+
+    <el-dialog v-model="audioDialog" :title="audioTitle" width="50%" @closed="closeAudioPreview">
+      <audio ref="audioEl" controls autoplay class="audio-player" :src="audioUrl" />
+    </el-dialog>
   </el-card>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { nextTick, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox, type UploadFile } from 'element-plus'
+import Hls from 'hls.js'
 import {
   deleteFile,
   downloadFile,
@@ -100,6 +116,7 @@ import * as pdfjsLib from 'pdfjs-dist'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import type { FileVO, VersionListVO } from '@/types/api'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
+import { getToken } from '@/utils/request'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
 
@@ -124,6 +141,16 @@ const previewCanvas = ref<HTMLCanvasElement>()
 const previewPage = ref(1)
 const previewTotal = ref(0)
 let pdfDoc: PDFDocumentProxy | null = null
+
+const videoDialog = ref(false)
+const videoTitle = ref('')
+const videoEl = ref<HTMLVideoElement>()
+let hls: Hls | null = null
+
+const audioDialog = ref(false)
+const audioTitle = ref('')
+const audioEl = ref<HTMLAudioElement>()
+const audioUrl = ref('')
 
 function onFileChange(file: UploadFile) {
   selectedFile.value = file.raw ?? null
@@ -183,13 +210,66 @@ function formatSize(size: number) {
 }
 
 async function preview(row: FileVO) {
+  if (row.mimeType.startsWith('video/')) {
+    await openVideoPreview(row)
+    return
+  }
   const blob = await previewFile(row.id)
+  if (row.mimeType.startsWith('audio/') || blob.type.startsWith('audio/')) {
+    await openAudioPreview(blob, row.fileName)
+    return
+  }
   if (blob.type === 'application/pdf') {
     await openPdfPreview(blob, row.fileName)
     return
   }
   const url = URL.createObjectURL(blob)
   window.open(url, '_blank')
+}
+
+async function openVideoPreview(row: FileVO) {
+  videoTitle.value = row.fileName
+  videoDialog.value = true
+  await nextTick()
+  if (!videoEl.value) return
+  const base = import.meta.env.VITE_API_BASE_URL || '/api/v1'
+  const playlistUrl = `${base}/files/${row.id}/hls/playlist.m3u8`
+  if (Hls.isSupported()) {
+    hls = new Hls({
+      xhrSetup: (xhr) => {
+        const token = getToken()
+        if (token) {
+          xhr.setRequestHeader('Authorization', token)
+        }
+      },
+    })
+    hls.loadSource(playlistUrl)
+    hls.attachMedia(videoEl.value)
+  } else if (videoEl.value.canPlayType('application/vnd.apple.mpegurl')) {
+    videoEl.value.src = playlistUrl
+  }
+}
+
+function closeVideoPreview() {
+  hls?.destroy()
+  hls = null
+}
+
+async function openAudioPreview(blob: Blob, title: string) {
+  audioTitle.value = title
+  audioUrl.value = URL.createObjectURL(blob)
+  audioDialog.value = true
+  await nextTick()
+  audioEl.value?.play().catch(() => {
+    // 浏览器自动播放策略可能阻止，用户可手动点击播放
+  })
+}
+
+function closeAudioPreview() {
+  if (audioUrl.value) {
+    URL.revokeObjectURL(audioUrl.value)
+    audioUrl.value = ''
+  }
 }
 
 async function openPdfPreview(blob: Blob, title: string) {
@@ -287,5 +367,15 @@ onMounted(load)
 
 .pdf-canvas {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+
+.video-player {
+  width: 100%;
+  max-height: 70vh;
+  background: #000;
+}
+
+.audio-player {
+  width: 100%;
 }
 </style>

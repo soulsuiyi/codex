@@ -17,6 +17,8 @@ import com.archive.core.mapper.SysCaseMapper;
 import com.archive.core.mapper.SysFileMapper;
 import com.archive.core.mapper.SysFileVersionMapper;
 import com.archive.core.service.FileService;
+import com.archive.core.service.HlsResult;
+import com.archive.core.service.MediaConvertService;
 import com.archive.core.service.OfficeConvertService;
 import com.archive.core.service.StorageService;
 import com.archive.core.service.WatermarkService;
@@ -63,6 +65,7 @@ public class FileServiceImpl implements FileService {
     private final SysUserMapper sysUserMapper;
     private final ApplicationEventPublisher applicationEventPublisher;
     private final OfficeConvertService officeConvertService;
+    private final MediaConvertService mediaConvertService;
 
     @Value("${minio.buckets.transit}")
     private String transitBucket;
@@ -77,7 +80,8 @@ public class FileServiceImpl implements FileService {
                            WatermarkService watermarkService,
                            SysUserMapper sysUserMapper,
                            ApplicationEventPublisher applicationEventPublisher,
-                           OfficeConvertService officeConvertService) {
+                           OfficeConvertService officeConvertService,
+                           MediaConvertService mediaConvertService) {
         this.sysFileMapper = sysFileMapper;
         this.sysFileVersionMapper = sysFileVersionMapper;
         this.sysCaseMapper = sysCaseMapper;
@@ -86,6 +90,7 @@ public class FileServiceImpl implements FileService {
         this.sysUserMapper = sysUserMapper;
         this.applicationEventPublisher = applicationEventPublisher;
         this.officeConvertService = officeConvertService;
+        this.mediaConvertService = mediaConvertService;
     }
 
     @Override
@@ -242,9 +247,47 @@ public class FileServiceImpl implements FileService {
             if (officeConvertService.supports(file.getMimeType())) {
                 return buildConvertedStream(file, watermarkText(file));
             }
+            if (mediaConvertService.supports(file.getMimeType()) && file.getMimeType().startsWith("audio/")) {
+                return new FileStreamVO(
+                        storageService.getObject(file.getStorageBucket(), file.getStoragePath()),
+                        null, file.getMimeType(), file.getFileName());
+            }
             throw new BusinessException(ResultCode.BAD_REQUEST, "暂不支持预览该文件类型");
         }
         return buildStream(file, watermarkText(file));
+    }
+
+    @Override
+    public FileStreamVO hlsPlaylist(Long fileId) {
+        SysFile file = requireFile(fileId);
+        if (!mediaConvertService.supports(file.getMimeType())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该文件类型不支持 HLS 播放");
+        }
+        String playlistObject = ensureHlsCache(file);
+        return new FileStreamVO(
+                storageService.getObject(previewBucket, playlistObject),
+                null,
+                "application/vnd.apple.mpegurl",
+                "playlist.m3u8");
+    }
+
+    @Override
+    public FileStreamVO hlsSegment(Long fileId, String segment) {
+        if (!StringUtils.hasText(segment) || !segment.matches("[A-Za-z0-9_.-]{1,128}")) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "非法的分片名称");
+        }
+        SysFile file = requireFile(fileId);
+        if (!mediaConvertService.supports(file.getMimeType())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该文件类型不支持 HLS 播放");
+        }
+        ensureHlsCache(file);
+        String object = mediaObjectName(file, segment);
+        if (!storageService.objectExists(previewBucket, object)) {
+            throw new BusinessException(ResultCode.NOT_FOUND, "HLS 分片不存在");
+        }
+        return new FileStreamVO(
+                storageService.getObject(previewBucket, object),
+                null, "video/mp2t", segment);
     }
 
     @Override
@@ -538,6 +581,68 @@ public class FileServiceImpl implements FileService {
     private String baseName(String fileName) {
         int idx = fileName == null ? -1 : fileName.lastIndexOf('.');
         return idx > 0 ? fileName.substring(0, idx) : (fileName == null ? "preview" : fileName);
+    }
+
+    /**
+     * 确保 HLS 转码产物已缓存到预览桶，返回播放列表对象名。
+     */
+    private String ensureHlsCache(SysFile file) {
+        String playlistObject = file.getPreviewPath();
+        if (StringUtils.hasText(playlistObject)
+                && storageService.objectExists(previewBucket, playlistObject)) {
+            return playlistObject;
+        }
+        HlsResult result = null;
+        try {
+            try (InputStream source = storageService.getObject(file.getStorageBucket(), file.getStoragePath())) {
+                result = mediaConvertService.convertToHls(file.getFileName(), source);
+            }
+            Path workDir = result.workDir();
+            for (String segment : result.segmentFileNames()) {
+                Path segPath = workDir.resolve(segment);
+                try (InputStream in = Files.newInputStream(segPath)) {
+                    storageService.putFile(
+                            previewBucket, mediaObjectName(file, segment),
+                            in, Files.size(segPath), "video/mp2t");
+                }
+            }
+            String objectName = mediaObjectName(file, result.playlistFileName());
+            Path playlistPath = workDir.resolve(result.playlistFileName());
+            try (InputStream in = Files.newInputStream(playlistPath)) {
+                storageService.putFile(
+                        previewBucket, objectName,
+                        in, Files.size(playlistPath), "application/vnd.apple.mpegurl");
+            }
+            sysFileMapper.update(null, Wrappers.<SysFile>lambdaUpdate()
+                    .eq(SysFile::getId, file.getId())
+                    .set(SysFile::getPreviewPath, objectName));
+            return objectName;
+        } catch (IOException e) {
+            log.warn("HLS 转码缓存失败 id={}: {}", file.getId(), e.getMessage());
+            throw new BusinessException(ResultCode.INTERNAL_ERROR, "HLS 转码缓存失败");
+        } finally {
+            if (result != null) {
+                deleteWorkDir(result.workDir());
+            }
+        }
+    }
+
+    private String mediaObjectName(SysFile file, String segment) {
+        return "media/" + file.getCaseId() + "/" + file.getId() + "/" + segment;
+    }
+
+    private void deleteWorkDir(Path dir) {
+        try (var stream = Files.walk(dir)) {
+            stream.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException ignored) {
+                    // 忽略单文件清理失败
+                }
+            });
+        } catch (IOException ignored) {
+            // 忽略目录清理失败
+        }
     }
 
     private String watermarkText(SysFile file) {

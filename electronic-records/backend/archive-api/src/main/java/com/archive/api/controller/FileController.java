@@ -91,6 +91,18 @@ public class FileController {
         return streamResponse(fileService.previewStream(id), true);
     }
 
+    @GetMapping("/files/{id}/hls/playlist.m3u8")
+    @Operation(summary = "HLS 播放列表", description = "音视频转码后的 m3u8，分片相对路径基于本接口目录")
+    public ResponseEntity<?> hlsPlaylist(@PathVariable Long id) {
+        return streamResponse(fileService.hlsPlaylist(id), true);
+    }
+
+    @GetMapping("/files/{id}/hls/{segment}")
+    @Operation(summary = "HLS 分片", description = "播放列表引用的 ts 分片")
+    public ResponseEntity<?> hlsSegment(@PathVariable Long id, @PathVariable String segment) {
+        return streamResponse(fileService.hlsSegment(id, segment), true);
+    }
+
     @GetMapping("/files/{id}/versions")
     @Operation(summary = "获取文件版本列表", description = "返回当前文件与历史版本")
     public Result<VersionListVO> versions(@PathVariable Long id) {
