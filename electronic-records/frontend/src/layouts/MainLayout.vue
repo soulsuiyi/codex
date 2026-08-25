@@ -17,6 +17,10 @@
           <el-icon><FolderOpened /></el-icon>
           <span>案件管理</span>
         </el-menu-item>
+        <el-menu-item index="/cases/categories">
+          <el-icon><Collection /></el-icon>
+          <span>案件分类</span>
+        </el-menu-item>
         <el-menu-item index="/archives">
           <el-icon><Files /></el-icon>
           <span>归档管理</span>
@@ -68,14 +72,27 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Files, FolderOpened, HomeFilled, Reading, Search, Setting, User } from '@element-plus/icons-vue'
+import {
+  Collection,
+  Files,
+  FolderOpened,
+  HomeFilled,
+  Reading,
+  Search,
+  Setting,
+  User,
+} from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 
-const activeMenu = computed(() => (route.path.startsWith('/cases') ? '/cases' : route.path))
+const activeMenu = computed(() => {
+  if (route.path === '/cases/categories') return '/cases/categories'
+  if (route.path.startsWith('/cases')) return '/cases'
+  return route.path
+})
 
 async function handleCommand(command: string) {
   if (command === 'logout') {

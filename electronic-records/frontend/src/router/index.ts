@@ -28,6 +28,12 @@ const router = createRouter({
           meta: { title: '案件管理' },
         },
         {
+          path: 'cases/categories',
+          name: 'case-categories',
+          component: () => import('@/views/CategoryListView.vue'),
+          meta: { title: '案件分类' },
+        },
+        {
           path: 'cases/:caseNo/files',
           name: 'case-files',
           component: () => import('@/views/CaseFilesView.vue'),

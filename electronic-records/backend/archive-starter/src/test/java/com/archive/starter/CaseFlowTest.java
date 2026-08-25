@@ -213,6 +213,56 @@ class CaseFlowTest {
         assertThat(((Number) children.get(0).get("level")).intValue()).isEqualTo(2);
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void categoryManageFlow() {
+        String token = login("admin", "admin123");
+
+        Long rootId = createCategory(token, "CASE测试根", null);
+        Long childId = createCategory(token, "CASE测试子", rootId);
+
+        // 更新根分类：名称与排序
+        Map<String, Object> updateBody = new HashMap<>();
+        updateBody.put("name", "CASE测试根-更新");
+        updateBody.put("sortOrder", 9);
+        ResponseEntity<Map> updateResponse = restTemplate.exchange(
+                "/api/v1/cases/categories/" + rootId, HttpMethod.PUT,
+                new HttpEntity<>(updateBody, authHeaders(token)), Map.class);
+        assertThat(updateResponse.getBody().get("code")).isEqualTo(200);
+        Map<String, Object> updated = (Map<String, Object>) updateResponse.getBody().get("data");
+        assertThat(updated.get("name")).isEqualTo("CASE测试根-更新");
+        assertThat(((Number) updated.get("sortOrder")).intValue()).isEqualTo(9);
+
+        // 有子分类时删除根 → 400
+        ResponseEntity<Map> deleteRoot = restTemplate.exchange(
+                "/api/v1/cases/categories/" + rootId, HttpMethod.DELETE,
+                new HttpEntity<>(authHeaders(token)), Map.class);
+        assertThat(deleteRoot.getBody().get("code")).isEqualTo(400);
+
+        // 分类被案件引用时删除 → 400
+        SysCase referenced = new SysCase();
+        referenced.setCaseNo("CASE-TEST-" + System.currentTimeMillis());
+        referenced.setCaseName("分类引用测试");
+        referenced.setCategoryId(childId);
+        referenced.setStatus("ACTIVE");
+        sysCaseMapper.insert(referenced);
+        ResponseEntity<Map> deleteChild = restTemplate.exchange(
+                "/api/v1/cases/categories/" + childId, HttpMethod.DELETE,
+                new HttpEntity<>(authHeaders(token)), Map.class);
+        assertThat(deleteChild.getBody().get("code")).isEqualTo(400);
+
+        // 删除引用案件后，子分类与根分类可依次删除
+        sysCaseMapper.deleteById(referenced.getId());
+        ResponseEntity<Map> deleteChild2 = restTemplate.exchange(
+                "/api/v1/cases/categories/" + childId, HttpMethod.DELETE,
+                new HttpEntity<>(authHeaders(token)), Map.class);
+        assertThat(deleteChild2.getBody().get("code")).isEqualTo(200);
+        ResponseEntity<Map> deleteRoot2 = restTemplate.exchange(
+                "/api/v1/cases/categories/" + rootId, HttpMethod.DELETE,
+                new HttpEntity<>(authHeaders(token)), Map.class);
+        assertThat(deleteRoot2.getBody().get("code")).isEqualTo(200);
+    }
+
     private Long createCategory(String token, String name, Long parentId) {
         Map<String, Object> body = new HashMap<>();
         body.put("name", name);

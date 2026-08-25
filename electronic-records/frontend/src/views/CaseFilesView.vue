@@ -6,8 +6,15 @@
         <el-button type="primary">选择文件</el-button>
       </el-upload>
       <el-button type="success" :disabled="!selectedFile" :loading="uploading" @click="doUpload">
-        上传
+        {{ uploading ? '上传中…' : '上传' }}
       </el-button>
+      <el-progress
+        v-if="uploading && uploadProgress > 0"
+        :percentage="uploadProgress"
+        :stroke-width="14"
+        style="width: 220px"
+      />
+      <el-tag v-if="selectedFile" type="info">{{ formatSize(selectedFile.size) }}</el-tag>
       <el-button @click="load">刷新</el-button>
     </div>
 
@@ -59,7 +66,16 @@
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox, type UploadFile } from 'element-plus'
-import { deleteFile, downloadFile, fileVersions, listCaseFiles, previewFile, uploadFile } from '@/api/file'
+import {
+  deleteFile,
+  downloadFile,
+  fileVersions,
+  listCaseFiles,
+  mergeChunks,
+  previewFile,
+  uploadChunk,
+  uploadFile,
+} from '@/api/file'
 import type { FileVO, VersionListVO } from '@/types/api'
 
 const route = useRoute()
@@ -69,6 +85,10 @@ const rows = ref<FileVO[]>([])
 const loading = ref(false)
 const selectedFile = ref<File | null>(null)
 const uploading = ref(false)
+const uploadProgress = ref(0)
+
+const CHUNK_SIZE = 5 * 1024 * 1024
+const CHUNK_THRESHOLD = 20 * 1024 * 1024
 
 const versionDialog = ref(false)
 const versionInfo = ref<VersionListVO | null>(null)
@@ -89,14 +109,39 @@ async function load() {
 async function doUpload() {
   if (!selectedFile.value) return
   uploading.value = true
+  uploadProgress.value = 0
   try {
-    const res = await uploadFile(caseNo, selectedFile.value)
-    ElMessage.success(`上传成功：${res.fileName}`)
+    if (selectedFile.value.size > CHUNK_THRESHOLD) {
+      await doChunkUpload(selectedFile.value)
+    } else {
+      const res = await uploadFile(caseNo, selectedFile.value)
+      ElMessage.success(`上传成功：${res.fileName}`)
+    }
     selectedFile.value = null
     load()
   } finally {
     uploading.value = false
+    uploadProgress.value = 0
   }
+}
+
+async function doChunkUpload(file: File) {
+  const identifier = `${file.name}-${file.size}-${file.lastModified}`
+  const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
+  for (let i = 0; i < totalChunks; i++) {
+    const start = i * CHUNK_SIZE
+    const chunk = file.slice(start, Math.min(start + CHUNK_SIZE, file.size))
+    await uploadChunk({
+      file: chunk,
+      caseNo,
+      identifier,
+      chunkIndex: i + 1,
+      totalChunks,
+    })
+    uploadProgress.value = Math.round(((i + 1) / totalChunks) * 100)
+  }
+  const res = await mergeChunks({ caseNo, identifier, fileName: file.name, totalChunks })
+  ElMessage.success(`分片上传完成：${res.fileName}`)
 }
 
 function formatSize(size: number) {

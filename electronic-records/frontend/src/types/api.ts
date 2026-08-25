@@ -71,6 +71,11 @@ export interface CategoryCreateRequest {
   sortOrder?: number
 }
 
+export interface CategoryUpdateRequest {
+  name: string
+  sortOrder?: number
+}
+
 export type FileStage = 'STAGING' | 'ARCHIVED'
 
 export interface FileVO {

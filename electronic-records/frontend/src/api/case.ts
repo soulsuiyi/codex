@@ -1,9 +1,10 @@
-import { get, post, put } from '@/utils/request'
+import { del, get, post, put } from '@/utils/request'
 import type {
   CaseCreateRequest,
   CaseUpdateRequest,
   CaseVO,
   CategoryCreateRequest,
+  CategoryUpdateRequest,
   CategoryVO,
   PageResult,
 } from '@/types/api'
@@ -30,4 +31,12 @@ export function categoryTree(): Promise<CategoryVO[]> {
 
 export function createCategory(data: CategoryCreateRequest): Promise<CategoryVO> {
   return post<CategoryVO>('/cases/categories', data)
+}
+
+export function updateCategory(id: number, data: CategoryUpdateRequest): Promise<CategoryVO> {
+  return put<CategoryVO>(`/cases/categories/${id}`, data)
+}
+
+export function deleteCategory(id: number): Promise<void> {
+  return del<void>(`/cases/categories/${id}`)
 }

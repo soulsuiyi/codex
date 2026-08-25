@@ -1,6 +1,7 @@
 package com.archive.core.service;
 
 import com.archive.common.dto.CategoryCreateRequest;
+import com.archive.common.dto.CategoryUpdateRequest;
 import com.archive.common.dto.CategoryVO;
 
 import java.util.List;
@@ -19,4 +20,14 @@ public interface CategoryService {
      * 新建案件分类。
      */
     CategoryVO createCategory(CategoryCreateRequest request);
+
+    /**
+     * 更新案件分类（名称与排序；父级与层级不可改）。
+     */
+    CategoryVO updateCategory(Long id, CategoryUpdateRequest request);
+
+    /**
+     * 删除案件分类（存在子分类或已被案件引用时禁止）。
+     */
+    void deleteCategory(Long id);
 }
