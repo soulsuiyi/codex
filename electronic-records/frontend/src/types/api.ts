@@ -321,3 +321,14 @@ export interface AuditLogVO {
   result: 'SUCCESS' | 'FAILED'
   createdAt?: string
 }
+
+export interface StatsVO {
+  userCount: number
+  caseCount: number
+  fileCount: number
+  archivedFileCount: number
+  archiveRecordCount: number
+  borrowApplyCount: number
+  activeBorrowCount: number
+  apiKeyCount: number
+}

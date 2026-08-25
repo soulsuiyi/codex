@@ -11,6 +11,7 @@ import type {
   PageResult,
   RoleRequest,
   RoleVO,
+  StatsVO,
   UserCreateRequest,
   UserUpdateRequest,
   UserVO,
@@ -127,4 +128,9 @@ export interface AuditLogQuery {
 
 export function listAuditLogs(params: AuditLogQuery): Promise<PageResult<AuditLogVO>> {
   return get<PageResult<AuditLogVO>>('/system/audit-logs', params)
+}
+
+// ---------- 运行统计 ----------
+export function systemStats(): Promise<StatsVO> {
+  return get<StatsVO>('/system/stats')
 }

@@ -58,6 +58,12 @@ const router = createRouter({
           meta: { title: '全文检索' },
         },
         {
+          path: 'monitor',
+          name: 'monitor',
+          component: () => import('@/views/MonitorView.vue'),
+          meta: { title: '监控中心' },
+        },
+        {
           path: 'system/users',
           name: 'system-users',
           component: () => import('@/views/system/UserListView.vue'),

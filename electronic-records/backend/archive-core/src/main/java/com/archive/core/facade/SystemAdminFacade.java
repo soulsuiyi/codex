@@ -11,6 +11,7 @@ import com.archive.common.dto.MenuVO;
 import com.archive.common.dto.PageResult;
 import com.archive.common.dto.RoleRequest;
 import com.archive.common.dto.RoleVO;
+import com.archive.common.dto.StatsVO;
 import com.archive.common.dto.UserCreateRequest;
 import com.archive.common.dto.UserUpdateRequest;
 import com.archive.common.dto.UserVO;
@@ -81,4 +82,7 @@ public interface SystemAdminFacade {
     PageResult<AuditLogVO> pageAuditLogs(long page, long size, String module, String action,
                                          String username, String result,
                                          LocalDateTime startTime, LocalDateTime endTime);
+
+    // ---------- 运行统计 ----------
+    StatsVO systemStats();
 }

@@ -42,9 +42,13 @@
           <el-menu-item index="/system/roles">角色管理</el-menu-item>
           <el-menu-item index="/system/menus">菜单管理</el-menu-item>
           <el-menu-item index="/system/dicts">字典管理</el-menu-item>
-          <el-menu-item index="/system/api-keys">API 密钥</el-menu-item>
+        <el-menu-item index="/system/api-keys">API 密钥</el-menu-item>
           <el-menu-item index="/system/audit-logs">操作日志</el-menu-item>
         </el-sub-menu>
+        <el-menu-item index="/monitor">
+          <el-icon><Monitor /></el-icon>
+          <span>监控中心</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>
@@ -78,6 +82,7 @@ import {
   Files,
   FolderOpened,
   HomeFilled,
+  Monitor,
   Reading,
   Search,
   Setting,

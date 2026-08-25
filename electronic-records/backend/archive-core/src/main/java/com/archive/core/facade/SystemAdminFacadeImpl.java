@@ -16,10 +16,12 @@ import com.archive.common.dto.MenuVO;
 import com.archive.common.dto.PageResult;
 import com.archive.common.dto.RoleRequest;
 import com.archive.common.dto.RoleVO;
+import com.archive.common.dto.StatsVO;
 import com.archive.common.dto.UserCreateRequest;
 import com.archive.common.dto.UserUpdateRequest;
 import com.archive.common.dto.UserVO;
 import com.archive.core.service.DictService;
+import com.archive.core.service.StatsService;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -37,19 +39,22 @@ public class SystemAdminFacadeImpl implements SystemAdminFacade {
     private final SystemApiKeyService systemApiKeyService;
     private final AuditLogService auditLogService;
     private final DictService dictService;
+    private final StatsService statsService;
 
     public SystemAdminFacadeImpl(SystemUserService systemUserService,
                                  SystemRoleService systemRoleService,
                                  SystemMenuService systemMenuService,
                                  SystemApiKeyService systemApiKeyService,
                                  AuditLogService auditLogService,
-                                 DictService dictService) {
+                                 DictService dictService,
+                                 StatsService statsService) {
         this.systemUserService = systemUserService;
         this.systemRoleService = systemRoleService;
         this.systemMenuService = systemMenuService;
         this.systemApiKeyService = systemApiKeyService;
         this.auditLogService = auditLogService;
         this.dictService = dictService;
+        this.statsService = statsService;
     }
 
     @Override
@@ -177,5 +182,10 @@ public class SystemAdminFacadeImpl implements SystemAdminFacade {
                                                 String username, String result,
                                                 LocalDateTime startTime, LocalDateTime endTime) {
         return auditLogService.pageAuditLogs(page, size, module, action, username, result, startTime, endTime);
+    }
+
+    @Override
+    public StatsVO systemStats() {
+        return statsService.systemStats();
     }
 }

@@ -433,6 +433,31 @@ class SystemFlowTest {
                 .isZero();
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void systemStatsFlow() {
+        String token = login("admin", "admin123");
+        createUser("SYS-TEST-STATS", "123456", "CASE_HANDLER");
+        String handlerToken = login("SYS-TEST-STATS", "123456");
+
+        // 非管理员 → 403
+        ResponseEntity<Map> forbidden = restTemplate.exchange(
+                "/api/v1/system/stats", HttpMethod.GET,
+                new HttpEntity<>(authHeaders(handlerToken)), Map.class);
+        assertThat(forbidden.getBody().get("code")).isEqualTo(403);
+
+        // 管理员统计
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/api/v1/system/stats", HttpMethod.GET,
+                new HttpEntity<>(authHeaders(token)), Map.class);
+        assertThat(response.getBody().get("code")).isEqualTo(200);
+        Map<String, Object> stats = (Map<String, Object>) response.getBody().get("data");
+        assertThat(((Number) stats.get("userCount")).longValue()).isGreaterThanOrEqualTo(1);
+        assertThat(((Number) stats.get("apiKeyCount")).longValue()).isGreaterThanOrEqualTo(0);
+        assertThat(((Number) stats.get("fileCount")).longValue()).isGreaterThanOrEqualTo(0);
+        assertThat(((Number) stats.get("activeBorrowCount")).longValue()).isGreaterThanOrEqualTo(0);
+    }
+
     private String login(String username, String password) {
         ResponseEntity<Map> response = restTemplate.postForEntity(
                 "/api/v1/auth/login",
