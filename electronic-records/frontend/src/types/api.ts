@@ -332,3 +332,26 @@ export interface StatsVO {
   activeBorrowCount: number
   apiKeyCount: number
 }
+
+export interface ProfileVO {
+  id: number
+  username: string
+  realName?: string
+  phone?: string
+  email?: string
+  deptId?: number
+  lastLoginTime?: string
+  createdAt?: string
+}
+
+export interface ProfileUpdateRequest {
+  realName: string
+  phone?: string
+  email?: string
+  deptId?: number
+}
+
+export interface ChangePasswordRequest {
+  oldPassword: string
+  newPassword: string
+}

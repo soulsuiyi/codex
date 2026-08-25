@@ -64,6 +64,12 @@ const router = createRouter({
           meta: { title: '监控中心' },
         },
         {
+          path: 'profile',
+          name: 'profile',
+          component: () => import('@/views/ProfileView.vue'),
+          meta: { title: '个人资料' },
+        },
+        {
           path: 'system/users',
           name: 'system-users',
           component: () => import('@/views/system/UserListView.vue'),

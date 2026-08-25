@@ -2,6 +2,9 @@ package com.archive.auth.service;
 
 import com.archive.common.dto.LoginRequest;
 import com.archive.common.dto.LoginResponse;
+import com.archive.common.dto.ProfileUpdateRequest;
+import com.archive.common.dto.ProfileVO;
+import com.archive.common.dto.ChangePasswordRequest;
 
 /**
  * 认证服务：登录、登出、当前用户。
@@ -22,4 +25,19 @@ public interface AuthService {
      * 当前登录用户 ID。
      */
     Long currentUserId();
+
+    /**
+     * 当前登录用户资料。
+     */
+    ProfileVO profile();
+
+    /**
+     * 更新当前用户资料（姓名/手机/邮箱/部门）。
+     */
+    ProfileVO updateProfile(ProfileUpdateRequest request);
+
+    /**
+     * 修改当前用户密码（校验原密码）。
+     */
+    void changePassword(ChangePasswordRequest request);
 }

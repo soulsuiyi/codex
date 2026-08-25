@@ -2,6 +2,9 @@ package com.archive.core.facade;
 
 import com.archive.common.dto.LoginRequest;
 import com.archive.common.dto.LoginResponse;
+import com.archive.common.dto.ProfileUpdateRequest;
+import com.archive.common.dto.ProfileVO;
+import com.archive.common.dto.ChangePasswordRequest;
 
 /**
  * 认证门面：向 archive-api 暴露认证能力。
@@ -14,4 +17,10 @@ public interface AuthFacade {
     void logout();
 
     Long currentUserId();
+
+    ProfileVO profile();
+
+    ProfileVO updateProfile(ProfileUpdateRequest request);
+
+    void changePassword(ChangePasswordRequest request);
 }

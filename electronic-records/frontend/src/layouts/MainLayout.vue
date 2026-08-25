@@ -61,6 +61,7 @@
           </span>
           <template #dropdown>
             <el-dropdown-menu>
+              <el-dropdown-item command="profile">个人资料</el-dropdown-item>
               <el-dropdown-item command="logout">退出登录</el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -101,7 +102,9 @@ const activeMenu = computed(() => {
 })
 
 async function handleCommand(command: string) {
-  if (command === 'logout') {
+  if (command === 'profile') {
+    router.push('/profile')
+  } else if (command === 'logout') {
     await userStore.logout()
     ElMessage.success('已退出登录')
     router.push('/login')
