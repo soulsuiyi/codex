@@ -37,3 +37,36 @@ WHERE u.username = 'admin' AND r.role_code = 'ADMIN'
       INNER JOIN sys_role r2 ON r2.id = ur.role_id
       WHERE u2.username = 'admin' AND r2.role_code = 'ADMIN'
   );
+
+-- 结构化文书识别关键词（归档时按文件名匹配统计 struct_doc_count，可在字典管理页维护）
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'STRUCTURED_DOC', 'TRANSCRIPT', '笔录', '笔录', 1, '结构化文书文件名关键词'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'STRUCTURED_DOC' AND dict_code = 'TRANSCRIPT');
+
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'STRUCTURED_DOC', 'INDICTMENT', '起诉书', '起诉书', 2, '结构化文书文件名关键词'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'STRUCTURED_DOC' AND dict_code = 'INDICTMENT');
+
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'STRUCTURED_DOC', 'ARBITRAL_AWARD', '裁决书', '裁决书', 3, '结构化文书文件名关键词'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'STRUCTURED_DOC' AND dict_code = 'ARBITRAL_AWARD');
+
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'STRUCTURED_DOC', 'MEDIATION', '调解书', '调解书', 4, '结构化文书文件名关键词'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'STRUCTURED_DOC' AND dict_code = 'MEDIATION');
+
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'STRUCTURED_DOC', 'DECISION', '决定书', '决定书', 5, '结构化文书文件名关键词'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'STRUCTURED_DOC' AND dict_code = 'DECISION');
+
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'STRUCTURED_DOC', 'NOTICE', '通知书', '通知书', 6, '结构化文书文件名关键词'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'STRUCTURED_DOC' AND dict_code = 'NOTICE');
+
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'STRUCTURED_DOC', 'REPLY', '答辩状', '答辩状', 7, '结构化文书文件名关键词'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'STRUCTURED_DOC' AND dict_code = 'REPLY');
+
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'STRUCTURED_DOC', 'APPLICATION', '申请书', '申请书', 8, '结构化文书文件名关键词'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'STRUCTURED_DOC' AND dict_code = 'APPLICATION');

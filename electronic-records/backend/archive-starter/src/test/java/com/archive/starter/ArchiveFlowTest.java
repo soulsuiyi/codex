@@ -177,6 +177,26 @@ class ArchiveFlowTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void archiveCountsStructuredDocs() {
+        String token = login();
+        String caseNo = createCase("ARCH-TEST-" + System.currentTimeMillis());
+        // 内容必须不同，避免 SHA-256 秒传去重
+        upload(token, caseNo, "询问笔录.pdf", "笔录内容".getBytes(StandardCharsets.UTF_8));
+        upload(token, caseNo, "起诉书.docx", "起诉书内容".getBytes(StandardCharsets.UTF_8));
+        upload(token, caseNo, "证据扫描件.jpg", "扫描件内容".getBytes(StandardCharsets.UTF_8));
+
+        ResponseEntity<Map> archiveResponse = restTemplate.exchange(
+                "/api/v1/archives/archive", HttpMethod.POST,
+                new HttpEntity<>(caseBody(caseNo), authHeaders(token)), Map.class);
+        assertThat(archiveResponse.getBody().get("code")).isEqualTo(200);
+        Map<String, Object> data = (Map<String, Object>) archiveResponse.getBody().get("data");
+        assertThat(((Number) data.get("fileCount")).intValue()).isEqualTo(3);
+        // 笔录 + 起诉书命中 STRUCTURED_DOC 关键词，证据扫描件不命中
+        assertThat(((Number) data.get("structDocCount")).intValue()).isEqualTo(2);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void archiveErrors() {
         String token = login();
 

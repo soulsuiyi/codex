@@ -7,9 +7,11 @@ import com.archive.common.exception.BusinessException;
 import com.archive.common.response.ResultCode;
 import com.archive.core.entity.SysArchive;
 import com.archive.core.entity.SysCase;
+import com.archive.core.entity.SysDict;
 import com.archive.core.entity.SysFile;
 import com.archive.core.mapper.SysArchiveMapper;
 import com.archive.core.mapper.SysCaseMapper;
+import com.archive.core.mapper.SysDictMapper;
 import com.archive.core.mapper.SysFileMapper;
 import com.archive.core.service.ArchiveService;
 import com.archive.core.service.StorageService;
@@ -35,6 +37,7 @@ public class ArchiveServiceImpl implements ArchiveService {
 
     private final SysCaseMapper sysCaseMapper;
     private final SysFileMapper sysFileMapper;
+    private final SysDictMapper sysDictMapper;
     private final SysArchiveMapper sysArchiveMapper;
     private final StorageService storageService;
 
@@ -43,10 +46,12 @@ public class ArchiveServiceImpl implements ArchiveService {
 
     public ArchiveServiceImpl(SysCaseMapper sysCaseMapper,
                               SysFileMapper sysFileMapper,
+                              SysDictMapper sysDictMapper,
                               SysArchiveMapper sysArchiveMapper,
                               StorageService storageService) {
         this.sysCaseMapper = sysCaseMapper;
         this.sysFileMapper = sysFileMapper;
+        this.sysDictMapper = sysDictMapper;
         this.sysArchiveMapper = sysArchiveMapper;
         this.storageService = storageService;
     }
@@ -111,10 +116,23 @@ public class ArchiveServiceImpl implements ArchiveService {
         archive.setCaseNo(caseNo);
         archive.setOperatorId(currentUserId());
         archive.setFileCount(files.size());
-        archive.setStructDocCount(0);
+        archive.setStructDocCount((int) StructuredDocCounter.count(files, structuredDocKeywords()));
         archive.setStatus("SUCCESS");
         sysArchiveMapper.insert(archive);
         return toVO(sysArchiveMapper.selectById(archive.getId()));
+    }
+
+    /**
+     * 结构化文书关键词：读取 sys_dict 中 STRUCTURED_DOC 类型的 dict_value。
+     */
+    private List<String> structuredDocKeywords() {
+        return sysDictMapper.selectList(Wrappers.<SysDict>lambdaQuery()
+                        .eq(SysDict::getDictType, "STRUCTURED_DOC")
+                        .orderByAsc(SysDict::getSortOrder))
+                .stream()
+                .map(SysDict::getDictValue)
+                .filter(StringUtils::hasText)
+                .toList();
     }
 
     @Override
