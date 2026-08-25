@@ -1,6 +1,7 @@
 package com.archive.core.service;
 
 import java.io.InputStream;
+import java.util.List;
 
 /**
  * 对象存储服务（MinIO 封装）。
@@ -41,4 +42,9 @@ public interface StorageService {
      * 删除对象。
      */
     void removeObject(String bucket, String objectName);
+
+    /**
+     * 列出指定前缀下的对象名。
+     */
+    List<String> listObjectNames(String bucket, String prefix);
 }

@@ -6,6 +6,7 @@ import io.minio.CopyObjectArgs;
 import io.minio.CopySource;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.GetObjectArgs;
+import io.minio.ListObjectsArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
@@ -13,12 +14,15 @@ import io.minio.RemoveObjectArgs;
 import io.minio.StatObjectArgs;
 import io.minio.errors.ErrorResponseException;
 import io.minio.http.Method;
+import io.minio.Result;
+import io.minio.messages.Item;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -41,13 +45,16 @@ public class StorageServiceImpl implements StorageService {
     @Value("${minio.buckets.preview}")
     private String previewBucket;
 
+    @Value("${minio.buckets.cold}")
+    private String coldBucket;
+
     public StorageServiceImpl(MinioClient minioClient) {
         this.minioClient = minioClient;
     }
 
     @Override
     public void ensureBuckets() {
-        for (String bucket : List.of(transitBucket, archiveBucket, previewBucket)) {
+        for (String bucket : List.of(transitBucket, archiveBucket, previewBucket, coldBucket)) {
             try {
                 boolean exists = minioClient.bucketExists(
                         BucketExistsArgs.builder().bucket(bucket).build());
@@ -133,6 +140,21 @@ public class StorageServiceImpl implements StorageService {
             minioClient.removeObject(RemoveObjectArgs.builder().bucket(bucket).object(objectName).build());
         } catch (Exception e) {
             throw new IllegalStateException("MinIO 删除失败: " + bucket + "/" + objectName, e);
+        }
+    }
+
+    @Override
+    public List<String> listObjectNames(String bucket, String prefix) {
+        try {
+            List<String> names = new ArrayList<>();
+            Iterable<Result<Item>> results = minioClient.listObjects(
+                    ListObjectsArgs.builder().bucket(bucket).prefix(prefix).build());
+            for (Result<Item> result : results) {
+                names.add(result.get().objectName());
+            }
+            return names;
+        } catch (Exception e) {
+            throw new IllegalStateException("MinIO 对象列表失败: " + bucket + "/" + prefix, e);
         }
     }
 }

@@ -86,6 +86,7 @@ minio:
     transit: ${MINIO_TRANSIT_BUCKET:transit-bucket}
     archive: ${MINIO_ARCHIVE_BUCKET:archive-bucket}
     preview: ${MINIO_PREVIEW_BUCKET:preview-bucket}
+    cold: ${MINIO_COLD_BUCKET:cold-bucket}
 
 archive:
   ocr:
@@ -94,5 +95,10 @@ archive:
     command: ${ARCHIVE_OFFICE_COMMAND:soffice}
   media:
     ffmpeg-command: ${ARCHIVE_FFMPEG_COMMAND:ffmpeg}
+  audit:
+    retention-days: ${ARCHIVE_AUDIT_RETENTION_DAYS:365}
+  backup:
+    dir: ${ARCHIVE_BACKUP_DIR:./data/backup/h2}
+    retention-days: ${ARCHIVE_BACKUP_RETENTION_DAYS:30}
   watermark:
     font-path: "${ARCHIVE_WATERMARK_FONT_PATH:C:/Windows/Fonts/simhei.ttf}"
