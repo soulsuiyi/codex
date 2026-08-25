@@ -57,7 +57,7 @@
         <el-dropdown @command="handleCommand">
           <span class="user-name">
             <el-icon><User /></el-icon>
-            {{ userStore.isLoggedIn ? '当前用户' : '未登录' }}
+            {{ userStore.realName || userStore.username || (userStore.isLoggedIn ? '当前用户' : '未登录') }}
           </span>
           <template #dropdown>
             <el-dropdown-menu>
@@ -75,9 +75,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Collection,
   Files,
@@ -105,11 +105,22 @@ async function handleCommand(command: string) {
   if (command === 'profile') {
     router.push('/profile')
   } else if (command === 'logout') {
-    await userStore.logout()
-    ElMessage.success('已退出登录')
-    router.push('/login')
+    try {
+      await ElMessageBox.confirm('确认退出当前账号？', '提示', { type: 'warning' })
+      await userStore.logout()
+      ElMessage.success('已退出登录')
+      router.push('/login')
+    } catch {
+      // 用户取消退出
+    }
   }
 }
+
+onMounted(() => {
+  if (userStore.isLoggedIn) {
+    userStore.fetchProfile()
+  }
+})
 </script>
 
 <style scoped>

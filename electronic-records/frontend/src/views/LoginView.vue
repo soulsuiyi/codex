@@ -6,10 +6,13 @@
       </template>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="0" @keyup.enter="handleLogin">
         <el-form-item prop="username">
-          <el-input v-model="form.username" placeholder="用户名" clearable />
+          <el-input ref="usernameInput" v-model="form.username" placeholder="用户名" clearable />
         </el-form-item>
         <el-form-item prop="password">
           <el-input v-model="form.password" type="password" placeholder="密码" show-password />
+        </el-form-item>
+        <el-form-item>
+          <el-checkbox v-model="remember">记住用户名</el-checkbox>
         </el-form-item>
         <el-form-item>
           <el-button type="primary" class="login-button" :loading="loading" @click="handleLogin">
@@ -22,17 +25,21 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { ElInput, ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+
+const REMEMBER_KEY = 'archive_remembered_username'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
 const formRef = ref<FormInstance>()
+const usernameInput = ref<InstanceType<typeof ElInput>>()
 const loading = ref(false)
+const remember = ref(false)
 const form = reactive({
   username: '',
   password: '',
@@ -48,6 +55,11 @@ async function handleLogin() {
   loading.value = true
   try {
     await userStore.login({ ...form })
+    if (remember.value) {
+      localStorage.setItem(REMEMBER_KEY, form.username)
+    } else {
+      localStorage.removeItem(REMEMBER_KEY)
+    }
     ElMessage.success('登录成功')
     const redirect = (route.query.redirect as string) || '/'
     router.push(redirect)
@@ -55,6 +67,15 @@ async function handleLogin() {
     loading.value = false
   }
 }
+
+onMounted(() => {
+  const saved = localStorage.getItem(REMEMBER_KEY)
+  if (saved) {
+    form.username = saved
+    remember.value = true
+  }
+  usernameInput.value?.focus()
+})
 </script>
 
 <style scoped>
