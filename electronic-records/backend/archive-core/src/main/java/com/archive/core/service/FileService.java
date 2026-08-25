@@ -43,6 +43,11 @@ public interface FileService {
     FileStreamVO previewStream(Long fileId);
 
     /**
+     * 原始转换 PDF 流（Office 文档转 PDF，未加水印，供借阅等场景自行注入水印）。
+     */
+    FileStreamVO convertedPdfStream(Long fileId);
+
+    /**
      * HLS 播放列表：音视频转码（缓存）后返回 m3u8 流。
      */
     FileStreamVO hlsPlaylist(Long fileId);

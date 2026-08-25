@@ -230,11 +230,22 @@
         </el-table-column>
       </el-table>
     </el-dialog>
+
+    <el-dialog
+      v-model="videoDialog"
+      :title="videoTitle"
+      width="70%"
+      top="6vh"
+      destroy-on-close
+      @closed="closeVideoPreview"
+    >
+      <video ref="videoEl" controls class="video-player" />
+    </el-dialog>
   </el-card>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { nextTick, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { listCaseFiles } from '@/api/file'
 import {
@@ -256,6 +267,7 @@ import type {
   BorrowTokenVO,
   FileVO,
 } from '@/types/api'
+import { getToken as getAuthToken } from '@/utils/request'
 
 const activeTab = ref('mine')
 
@@ -307,6 +319,11 @@ const borrowFilesDialog = ref(false)
 const borrowFilesRow = ref<BorrowApplyVO | null>(null)
 const borrowTokenValue = ref('')
 const borrowFiles = ref<FileVO[]>([])
+
+const videoDialog = ref(false)
+const videoTitle = ref('')
+const videoEl = ref<HTMLVideoElement>()
+let hls: import('hls.js').default | null = null
 
 async function load() {
   if (activeTab.value === 'pending') {
@@ -456,6 +473,10 @@ async function openBorrowFiles(row: BorrowApplyVO) {
 
 async function previewBorrowFile(file: FileVO) {
   if (!borrowFilesRow.value) return
+  if (file.mimeType.startsWith('video/')) {
+    await openBorrowVideo(file)
+    return
+  }
   const res = await borrowDownload(borrowFilesRow.value.id, {
     tokenValue: borrowTokenValue.value,
     fileId: file.id,
@@ -471,6 +492,38 @@ async function previewBorrowFile(file: FileVO) {
   }
   const url = URL.createObjectURL(res)
   window.open(url, '_blank')
+}
+
+async function openBorrowVideo(file: FileVO) {
+  if (!borrowFilesRow.value) return
+  videoTitle.value = file.fileName
+  videoDialog.value = true
+  await nextTick()
+  if (!videoEl.value) return
+  const base = import.meta.env.VITE_API_BASE_URL || '/api/v1'
+  const playlistUrl =
+    `${base}/borrows/${borrowFilesRow.value.id}/hls/${file.id}/playlist.m3u8` +
+    `?token=${encodeURIComponent(borrowTokenValue.value)}`
+  const { default: Hls } = await import('hls.js')
+  if (Hls.isSupported()) {
+    hls = new Hls({
+      xhrSetup: (xhr) => {
+        const token = getAuthToken()
+        if (token) {
+          xhr.setRequestHeader('Authorization', token)
+        }
+      },
+    })
+    hls.loadSource(playlistUrl)
+    hls.attachMedia(videoEl.value)
+  } else if (videoEl.value.canPlayType('application/vnd.apple.mpegurl')) {
+    videoEl.value.src = playlistUrl
+  }
+}
+
+function closeVideoPreview() {
+  hls?.destroy()
+  hls = null
 }
 
 async function downloadBorrowFile(file: FileVO) {
@@ -522,5 +575,11 @@ onMounted(load)
 .detail-section {
   margin: 14px 0 8px;
   font-weight: 600;
+}
+
+.video-player {
+  width: 100%;
+  max-height: 70vh;
+  background: #000;
 }
 </style>

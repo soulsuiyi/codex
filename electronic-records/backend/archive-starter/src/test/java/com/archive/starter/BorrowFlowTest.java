@@ -223,6 +223,45 @@ class BorrowFlowTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void borrowHlsTokenValidation() {
+        String adminToken = login();
+        String caseNo = createCase("BORROW-TEST-" + System.currentTimeMillis());
+        Long fileId = upload(adminToken, caseNo, "borrow.mp4",
+                "fake video bytes".getBytes(StandardCharsets.UTF_8));
+        archiveCase(adminToken, caseNo);
+
+        String handlerToken = login(HANDLER_USERNAME);
+        Long applyId = applyId(handlerToken, caseNo, List.of(fileId), true);
+        approve(applyId, login(SECRETARY_USERNAME), "APPROVED", null);
+        approve(applyId, login(ARCHIVIST_USERNAME), "APPROVED", null);
+
+        // 无 Token → 400
+        ResponseEntity<Map> noToken = restTemplate.exchange(
+                "/api/v1/borrows/" + applyId + "/hls/" + fileId + "/playlist.m3u8",
+                HttpMethod.GET, new HttpEntity<>(authHeaders(handlerToken)), Map.class);
+        assertThat(code(noToken)).isEqualTo(400);
+
+        // 无效 Token → 403
+        ResponseEntity<Map> badToken = restTemplate.exchange(
+                "/api/v1/borrows/" + applyId + "/hls/" + fileId + "/playlist.m3u8?token=invalid",
+                HttpMethod.GET, new HttpEntity<>(authHeaders(handlerToken)), Map.class);
+        assertThat(code(badToken)).isEqualTo(403);
+
+        // 他人（秘书）持申请人 Token → 403
+        ResponseEntity<Map> tokenResponse = restTemplate.exchange(
+                "/api/v1/borrows/" + applyId + "/token", HttpMethod.GET,
+                new HttpEntity<>(authHeaders(handlerToken)), Map.class);
+        String tokenValue = (String) ((Map<String, Object>) tokenResponse.getBody().get("data"))
+                .get("tokenValue");
+        String secretaryToken = login(SECRETARY_USERNAME);
+        ResponseEntity<Map> otherUser = restTemplate.exchange(
+                "/api/v1/borrows/" + applyId + "/hls/" + fileId + "/playlist.m3u8?token=" + tokenValue,
+                HttpMethod.GET, new HttpEntity<>(authHeaders(secretaryToken)), Map.class);
+        assertThat(code(otherUser)).isEqualTo(403);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void pendingAndDetailFlow() {
         String adminToken = login();
         String caseNo = createCase("BORROW-TEST-" + System.currentTimeMillis());

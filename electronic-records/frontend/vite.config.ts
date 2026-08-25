@@ -9,7 +9,7 @@ export default defineConfig({
     vue(),
     Components({
       resolvers: [ElementPlusResolver({ importStyle: false })],
-      dts: 'src/components.d.ts',
+      dts: false,
     }),
   ],
   resolve: {

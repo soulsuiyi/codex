@@ -28,6 +28,8 @@ import com.archive.core.mapper.SysBorrowTokenMapper;
 import com.archive.core.mapper.SysCaseMapper;
 import com.archive.core.mapper.SysFileMapper;
 import com.archive.core.service.BorrowService;
+import com.archive.core.service.FileService;
+import com.archive.core.service.OfficeConvertService;
 import com.archive.core.service.StorageService;
 import com.archive.core.service.WatermarkService;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -61,6 +63,8 @@ public class BorrowServiceImpl implements BorrowService {
     private final WatermarkService watermarkService;
     private final SysUserMapper sysUserMapper;
     private final SysRoleMapper sysRoleMapper;
+    private final FileService fileService;
+    private final OfficeConvertService officeConvertService;
     private final Cache<String, BorrowTokenCache> borrowTokenCache;
 
     public BorrowServiceImpl(SysBorrowApplyMapper sysBorrowApplyMapper,
@@ -72,6 +76,8 @@ public class BorrowServiceImpl implements BorrowService {
                              WatermarkService watermarkService,
                              SysUserMapper sysUserMapper,
                              SysRoleMapper sysRoleMapper,
+                             FileService fileService,
+                             OfficeConvertService officeConvertService,
                              Cache<String, BorrowTokenCache> borrowTokenCache) {
         this.sysBorrowApplyMapper = sysBorrowApplyMapper;
         this.sysBorrowApprovalMapper = sysBorrowApprovalMapper;
@@ -82,6 +88,8 @@ public class BorrowServiceImpl implements BorrowService {
         this.watermarkService = watermarkService;
         this.sysUserMapper = sysUserMapper;
         this.sysRoleMapper = sysRoleMapper;
+        this.fileService = fileService;
+        this.officeConvertService = officeConvertService;
         this.borrowTokenCache = borrowTokenCache;
     }
 
@@ -292,6 +300,12 @@ public class BorrowServiceImpl implements BorrowService {
         if (file == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "文件不存在");
         }
+        if (officeConvertService.supports(file.getMimeType())) {
+            FileStreamVO pdf = fileService.convertedPdfStream(file.getId());
+            InputStream watermarked = watermarkService.watermarkPdf(
+                    pdf.getStream(), watermarkService.buildText("已归档", currentUsername()));
+            return new FileStreamVO(watermarked, null, "application/pdf", pdf.getFileName());
+        }
         if (watermarkService.supports(file.getMimeType())) {
             InputStream source = storageService.getObject(file.getStorageBucket(), file.getStoragePath());
             String text = watermarkService.buildText("已归档", currentUsername());
@@ -303,6 +317,46 @@ public class BorrowServiceImpl implements BorrowService {
         return new FileStreamVO(null,
                 storageService.presignedGetUrl(file.getStorageBucket(), file.getStoragePath()),
                 file.getMimeType(), file.getFileName());
+    }
+
+    @Override
+    public FileStreamVO hlsPlaylist(Long id, String tokenValue, Long fileId) {
+        validateToken(id, tokenValue, fileId);
+        return fileService.hlsPlaylist(fileId);
+    }
+
+    @Override
+    public FileStreamVO hlsSegment(Long id, String tokenValue, Long fileId, String segment) {
+        validateToken(id, tokenValue, fileId);
+        return fileService.hlsSegment(fileId, segment);
+    }
+
+    /**
+     * 校验借阅 Token 与文件授权（预览场景不要求 allowDownload）。
+     */
+    private BorrowTokenCache validateToken(Long applyId, String tokenValue, Long fileId) {
+        SysBorrowApply apply = requireApply(applyId);
+        if (!"ACTIVE".equals(apply.getStatus())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "借阅未生效或已失效");
+        }
+        if (!StringUtils.hasText(tokenValue) || fileId == null) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "Token与文件ID不能为空");
+        }
+        BorrowTokenCache cache = loadCachedToken(tokenValue);
+        if (cache == null || !applyId.equals(cache.getApplyId())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "借阅Token无效");
+        }
+        if (!cache.getUserId().equals(currentUserId())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "Token不属于当前用户");
+        }
+        if (cache.getExpireTime() != null && cache.getExpireTime().isBefore(LocalDateTime.now())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "借阅Token已过期");
+        }
+        Set<String> authorized = new HashSet<>(Arrays.asList(cache.getFileIds().split(",")));
+        if (!authorized.contains(String.valueOf(fileId))) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "文件不在借阅授权范围内");
+        }
+        return cache;
     }
 
     @Override

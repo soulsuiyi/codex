@@ -50,6 +50,16 @@ public interface BorrowService {
     FileStreamVO download(Long id, BorrowDownloadRequest request);
 
     /**
+     * 借阅 HLS 播放列表（校验 Token 与授权文件，供借阅视频预览）。
+     */
+    FileStreamVO hlsPlaylist(Long id, String tokenValue, Long fileId);
+
+    /**
+     * 借阅 HLS 分片（校验 Token 与授权文件）。
+     */
+    FileStreamVO hlsSegment(Long id, String tokenValue, Long fileId, String segment);
+
+    /**
      * 归还借阅并撤销 Token。
      */
     BorrowApplyVO returnFile(Long id);

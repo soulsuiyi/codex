@@ -553,29 +553,47 @@ public class FileServiceImpl implements FileService {
      * Office 文档预览：首次转换后缓存 PDF 到预览桶，后续直接读取，统一加 PDF 水印。
      */
     private FileStreamVO buildConvertedStream(SysFile file, String text) {
-        String previewPath = file.getPreviewPath();
-        InputStream pdfSource;
-        if (StringUtils.hasText(previewPath) && storageService.objectExists(previewBucket, previewPath)) {
-            pdfSource = storageService.getObject(previewBucket, previewPath);
-        } else {
-            String objectName = "preview/" + file.getCaseId() + "/" + file.getId() + ".pdf";
-            try (InputStream source = storageService.getObject(file.getStorageBucket(), file.getStoragePath())) {
-                InputStream converted = officeConvertService.convertToPdf(file.getFileName(), source);
-                storageService.putFile(previewBucket, objectName, converted, converted.available(), "application/pdf");
-            } catch (IOException e) {
-                log.warn("预览转换缓存失败 id={}: {}", file.getId(), e.getMessage());
-            }
-            previewPath = objectName;
-            sysFileMapper.update(null, Wrappers.<SysFile>lambdaUpdate()
-                    .eq(SysFile::getId, file.getId())
-                    .set(SysFile::getPreviewPath, previewPath));
-            pdfSource = storageService.getObject(previewBucket, previewPath);
-        }
+        InputStream pdfSource = storageService.getObject(previewBucket, ensureConvertedPdf(file));
         return new FileStreamVO(
                 watermarkService.watermarkPdf(pdfSource, text),
                 null,
                 "application/pdf",
                 baseName(file.getFileName()) + ".pdf");
+    }
+
+    @Override
+    public FileStreamVO convertedPdfStream(Long fileId) {
+        SysFile file = requireFile(fileId);
+        if (!officeConvertService.supports(file.getMimeType())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该文件类型不支持文档预览");
+        }
+        String previewPath = ensureConvertedPdf(file);
+        return new FileStreamVO(
+                storageService.getObject(previewBucket, previewPath),
+                null,
+                "application/pdf",
+                baseName(file.getFileName()) + ".pdf");
+    }
+
+    /**
+     * 确保 Office 文档的转换 PDF 已缓存到预览桶，返回对象名。
+     */
+    private String ensureConvertedPdf(SysFile file) {
+        String previewPath = file.getPreviewPath();
+        if (StringUtils.hasText(previewPath) && storageService.objectExists(previewBucket, previewPath)) {
+            return previewPath;
+        }
+        String objectName = "preview/" + file.getCaseId() + "/" + file.getId() + ".pdf";
+        try (InputStream source = storageService.getObject(file.getStorageBucket(), file.getStoragePath())) {
+            InputStream converted = officeConvertService.convertToPdf(file.getFileName(), source);
+            storageService.putFile(previewBucket, objectName, converted, converted.available(), "application/pdf");
+        } catch (IOException e) {
+            log.warn("预览转换缓存失败 id={}: {}", file.getId(), e.getMessage());
+        }
+        sysFileMapper.update(null, Wrappers.<SysFile>lambdaUpdate()
+                .eq(SysFile::getId, file.getId())
+                .set(SysFile::getPreviewPath, objectName));
+        return objectName;
     }
 
     private String baseName(String fileName) {

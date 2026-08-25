@@ -95,10 +95,37 @@ public class BorrowController {
         return ResponseEntity.ok(Result.success(vo.getPresignedUrl()));
     }
 
+    @GetMapping("/{id}/hls/{fileId}/playlist.m3u8")
+    @Operation(summary = "借阅 HLS 播放列表", description = "需携带借阅 Token（query 参数 token）与借阅文件ID")
+    public ResponseEntity<?> hlsPlaylist(@PathVariable Long id,
+                                         @RequestParam(required = false) String token,
+                                         @PathVariable Long fileId) {
+        return streamResponse(borrowService.hlsPlaylist(id, token, fileId), true);
+    }
+
+    @GetMapping("/{id}/hls/{fileId}/{segment}")
+    @Operation(summary = "借阅 HLS 分片", description = "需携带借阅 Token（query 参数 token）")
+    public ResponseEntity<?> hlsSegment(@PathVariable Long id,
+                                        @RequestParam(required = false) String token,
+                                        @PathVariable Long fileId,
+                                        @PathVariable String segment) {
+        return streamResponse(borrowService.hlsSegment(id, token, fileId, segment), true);
+    }
+
     @PostMapping("/{id}/return")
     @Operation(summary = "归还借阅文件", description = "申请人归还并撤销授权")
     @AuditLog(module = "BORROW", action = "RETURN")
     public Result<BorrowApplyVO> returnFile(@PathVariable Long id) {
         return Result.success(borrowService.returnFile(id));
+    }
+
+    private ResponseEntity<InputStreamResource> streamResponse(FileStreamVO vo, boolean inline) {
+        MediaType mediaType = vo.getContentType() == null
+                ? MediaType.APPLICATION_OCTET_STREAM
+                : MediaType.parseMediaType(vo.getContentType());
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .header(HttpHeaders.CONTENT_DISPOSITION, inline ? "inline" : "attachment")
+                .body(new InputStreamResource(vo.getStream()));
     }
 }
