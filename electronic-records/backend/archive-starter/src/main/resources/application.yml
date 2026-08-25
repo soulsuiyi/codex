@@ -85,9 +85,12 @@ minio:
   buckets:
     transit: ${MINIO_TRANSIT_BUCKET:transit-bucket}
     archive: ${MINIO_ARCHIVE_BUCKET:archive-bucket}
+    preview: ${MINIO_PREVIEW_BUCKET:preview-bucket}
 
 archive:
   ocr:
     command: ${ARCHIVE_OCR_COMMAND:tesseract}
+  convert:
+    command: ${ARCHIVE_OFFICE_COMMAND:soffice}
   watermark:
     font-path: "${ARCHIVE_WATERMARK_FONT_PATH:C:/Windows/Fonts/simhei.ttf}"

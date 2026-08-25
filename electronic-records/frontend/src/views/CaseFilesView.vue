@@ -59,6 +59,26 @@
         </el-table>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="previewDialog"
+      :title="previewTitle"
+      width="78%"
+      top="4vh"
+      destroy-on-close
+      @closed="closePreview"
+    >
+      <div class="pdf-toolbar">
+        <el-button :disabled="previewPage <= 1" @click="previewPage--; renderPdfPage()">上一页</el-button>
+        <span class="pdf-page-info">{{ previewPage }} / {{ previewTotal }}</span>
+        <el-button :disabled="previewPage >= previewTotal" @click="previewPage++; renderPdfPage()">
+          下一页
+        </el-button>
+      </div>
+      <div class="pdf-canvas-wrap">
+        <canvas ref="previewCanvas" class="pdf-canvas" />
+      </div>
+    </el-dialog>
   </el-card>
 </template>
 
@@ -76,7 +96,12 @@ import {
   uploadChunk,
   uploadFile,
 } from '@/api/file'
+import * as pdfjsLib from 'pdfjs-dist'
+import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import type { FileVO, VersionListVO } from '@/types/api'
+import type { PDFDocumentProxy } from 'pdfjs-dist'
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
 
 const route = useRoute()
 const caseNo = route.params.caseNo as string
@@ -92,6 +117,13 @@ const CHUNK_THRESHOLD = 20 * 1024 * 1024
 
 const versionDialog = ref(false)
 const versionInfo = ref<VersionListVO | null>(null)
+
+const previewDialog = ref(false)
+const previewTitle = ref('')
+const previewCanvas = ref<HTMLCanvasElement>()
+const previewPage = ref(1)
+const previewTotal = ref(0)
+let pdfDoc: PDFDocumentProxy | null = null
 
 function onFileChange(file: UploadFile) {
   selectedFile.value = file.raw ?? null
@@ -152,8 +184,40 @@ function formatSize(size: number) {
 
 async function preview(row: FileVO) {
   const blob = await previewFile(row.id)
+  if (blob.type === 'application/pdf') {
+    await openPdfPreview(blob, row.fileName)
+    return
+  }
   const url = URL.createObjectURL(blob)
   window.open(url, '_blank')
+}
+
+async function openPdfPreview(blob: Blob, title: string) {
+  const url = URL.createObjectURL(blob)
+  const loadingTask = pdfjsLib.getDocument(url)
+  pdfDoc = await loadingTask.promise
+  previewTitle.value = title
+  previewTotal.value = pdfDoc.numPages
+  previewPage.value = 1
+  previewDialog.value = true
+  await renderPdfPage()
+}
+
+async function renderPdfPage() {
+  if (!pdfDoc || !previewCanvas.value) return
+  const page = await pdfDoc.getPage(previewPage.value)
+  const viewport = page.getViewport({ scale: 1.2 })
+  const canvas = previewCanvas.value
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  canvas.width = viewport.width
+  canvas.height = viewport.height
+  await page.render({ canvasContext: ctx, viewport }).promise
+}
+
+function closePreview() {
+  pdfDoc?.destroy()
+  pdfDoc = null
 }
 
 async function download(row: FileVO) {
@@ -198,5 +262,30 @@ onMounted(load)
   align-items: center;
   gap: 12px;
   margin-bottom: 16px;
+}
+
+.pdf-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.pdf-page-info {
+  color: #606266;
+}
+
+.pdf-canvas-wrap {
+  display: flex;
+  justify-content: center;
+  max-height: 72vh;
+  overflow: auto;
+  background: #525659;
+  padding: 12px;
+  border-radius: 4px;
+}
+
+.pdf-canvas {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
 }
 </style>

@@ -17,6 +17,7 @@ import com.archive.core.mapper.SysCaseMapper;
 import com.archive.core.mapper.SysFileMapper;
 import com.archive.core.mapper.SysFileVersionMapper;
 import com.archive.core.service.FileService;
+import com.archive.core.service.OfficeConvertService;
 import com.archive.core.service.StorageService;
 import com.archive.core.service.WatermarkService;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -61,9 +62,13 @@ public class FileServiceImpl implements FileService {
     private final WatermarkService watermarkService;
     private final SysUserMapper sysUserMapper;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final OfficeConvertService officeConvertService;
 
     @Value("${minio.buckets.transit}")
     private String transitBucket;
+
+    @Value("${minio.buckets.preview}")
+    private String previewBucket;
 
     public FileServiceImpl(SysFileMapper sysFileMapper,
                            SysFileVersionMapper sysFileVersionMapper,
@@ -71,7 +76,8 @@ public class FileServiceImpl implements FileService {
                            StorageService storageService,
                            WatermarkService watermarkService,
                            SysUserMapper sysUserMapper,
-                           ApplicationEventPublisher applicationEventPublisher) {
+                           ApplicationEventPublisher applicationEventPublisher,
+                           OfficeConvertService officeConvertService) {
         this.sysFileMapper = sysFileMapper;
         this.sysFileVersionMapper = sysFileVersionMapper;
         this.sysCaseMapper = sysCaseMapper;
@@ -79,6 +85,7 @@ public class FileServiceImpl implements FileService {
         this.watermarkService = watermarkService;
         this.sysUserMapper = sysUserMapper;
         this.applicationEventPublisher = applicationEventPublisher;
+        this.officeConvertService = officeConvertService;
     }
 
     @Override
@@ -232,6 +239,9 @@ public class FileServiceImpl implements FileService {
     public FileStreamVO previewStream(Long fileId) {
         SysFile file = requireFile(fileId);
         if (!watermarkService.supports(file.getMimeType())) {
+            if (officeConvertService.supports(file.getMimeType())) {
+                return buildConvertedStream(file, watermarkText(file));
+            }
             throw new BusinessException(ResultCode.BAD_REQUEST, "暂不支持预览该文件类型");
         }
         return buildStream(file, watermarkText(file));
@@ -311,6 +321,13 @@ public class FileServiceImpl implements FileService {
             try {
                 if (StringUtils.hasText(file.getStorageBucket()) && StringUtils.hasText(file.getStoragePath())) {
                     storageService.removeObject(file.getStorageBucket(), file.getStoragePath());
+                }
+                if (StringUtils.hasText(file.getPreviewPath())) {
+                    try {
+                        storageService.removeObject(previewBucket, file.getPreviewPath());
+                    } catch (Exception e) {
+                        log.warn("清理预览缓存失败 id={}: {}", file.getId(), e.getMessage());
+                    }
                 }
                 sysFileVersionMapper.delete(Wrappers.<SysFileVersion>lambdaQuery()
                         .eq(SysFileVersion::getFileId, file.getId()));
@@ -487,6 +504,40 @@ public class FileServiceImpl implements FileService {
                 ? watermarkService.watermarkPdf(source, text)
                 : watermarkService.watermarkImage(source, file.getMimeType(), text);
         return new FileStreamVO(watermarked, null, file.getMimeType(), file.getFileName());
+    }
+
+    /**
+     * Office 文档预览：首次转换后缓存 PDF 到预览桶，后续直接读取，统一加 PDF 水印。
+     */
+    private FileStreamVO buildConvertedStream(SysFile file, String text) {
+        String previewPath = file.getPreviewPath();
+        InputStream pdfSource;
+        if (StringUtils.hasText(previewPath) && storageService.objectExists(previewBucket, previewPath)) {
+            pdfSource = storageService.getObject(previewBucket, previewPath);
+        } else {
+            String objectName = "preview/" + file.getCaseId() + "/" + file.getId() + ".pdf";
+            try (InputStream source = storageService.getObject(file.getStorageBucket(), file.getStoragePath())) {
+                InputStream converted = officeConvertService.convertToPdf(file.getFileName(), source);
+                storageService.putFile(previewBucket, objectName, converted, converted.available(), "application/pdf");
+            } catch (IOException e) {
+                log.warn("预览转换缓存失败 id={}: {}", file.getId(), e.getMessage());
+            }
+            previewPath = objectName;
+            sysFileMapper.update(null, Wrappers.<SysFile>lambdaUpdate()
+                    .eq(SysFile::getId, file.getId())
+                    .set(SysFile::getPreviewPath, previewPath));
+            pdfSource = storageService.getObject(previewBucket, previewPath);
+        }
+        return new FileStreamVO(
+                watermarkService.watermarkPdf(pdfSource, text),
+                null,
+                "application/pdf",
+                baseName(file.getFileName()) + ".pdf");
+    }
+
+    private String baseName(String fileName) {
+        int idx = fileName == null ? -1 : fileName.lastIndexOf('.');
+        return idx > 0 ? fileName.substring(0, idx) : (fileName == null ? "preview" : fileName);
     }
 
     private String watermarkText(SysFile file) {

@@ -38,13 +38,16 @@ public class StorageServiceImpl implements StorageService {
     @Value("${minio.buckets.archive}")
     private String archiveBucket;
 
+    @Value("${minio.buckets.preview}")
+    private String previewBucket;
+
     public StorageServiceImpl(MinioClient minioClient) {
         this.minioClient = minioClient;
     }
 
     @Override
     public void ensureBuckets() {
-        for (String bucket : List.of(transitBucket, archiveBucket)) {
+        for (String bucket : List.of(transitBucket, archiveBucket, previewBucket)) {
             try {
                 boolean exists = minioClient.bucketExists(
                         BucketExistsArgs.builder().bucket(bucket).build());
