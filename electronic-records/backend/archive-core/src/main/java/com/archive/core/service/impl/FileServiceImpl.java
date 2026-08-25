@@ -33,6 +33,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URLConnection;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -267,6 +268,59 @@ public class FileServiceImpl implements FileService {
             throw new BusinessException(ResultCode.BAD_REQUEST, "仅中转站文件可删除");
         }
         sysFileMapper.deleteById(fileId);
+        // 记录逻辑删除时间，供 30 天物理清理任务使用
+        sysFileMapper.update(null, Wrappers.<SysFile>lambdaUpdate()
+                .eq(SysFile::getId, fileId)
+                .set(SysFile::getUpdatedAt, LocalDateTime.now()));
+    }
+
+    @Override
+    public int cleanStaleChunks(long maxAgeMillis) {
+        Path root = Paths.get(System.getProperty("java.io.tmpdir"), CHUNK_ROOT);
+        if (!Files.isDirectory(root)) {
+            return 0;
+        }
+        int cleaned = 0;
+        long now = System.currentTimeMillis();
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(root)) {
+            for (Path dir : stream) {
+                try {
+                    long lastModified = Files.getLastModifiedTime(dir).toMillis();
+                    if (now - lastModified > maxAgeMillis) {
+                        deleteChunkDir(dir.getFileName().toString());
+                        cleaned++;
+                    }
+                } catch (IOException ignored) {
+                    // 单个目录异常不影响整体清理
+                }
+            }
+        } catch (IOException e) {
+            log.warn("分片临时目录扫描失败: {}", e.getMessage());
+        }
+        return cleaned;
+    }
+
+    @Override
+    public int purgeDeletedFiles(int olderThanDays) {
+        LocalDateTime deadline = LocalDateTime.now().minusDays(olderThanDays);
+        List<SysFile> deleted = sysFileMapper.selectList(Wrappers.<SysFile>lambdaQuery()
+                .eq(SysFile::getIsDeleted, true)
+                .lt(SysFile::getUpdatedAt, deadline));
+        int purged = 0;
+        for (SysFile file : deleted) {
+            try {
+                if (StringUtils.hasText(file.getStorageBucket()) && StringUtils.hasText(file.getStoragePath())) {
+                    storageService.removeObject(file.getStorageBucket(), file.getStoragePath());
+                }
+                sysFileVersionMapper.delete(Wrappers.<SysFileVersion>lambdaQuery()
+                        .eq(SysFileVersion::getFileId, file.getId()));
+                sysFileMapper.hardDeleteById(file.getId());
+                purged++;
+            } catch (Exception e) {
+                log.warn("物理清理文件失败 id={}: {}", file.getId(), e.getMessage());
+            }
+        }
+        return purged;
     }
 
     private SysFile buildEntity(SysCase caseEntity, String caseNo, String fileName, String mimeType,

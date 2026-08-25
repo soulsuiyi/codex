@@ -56,4 +56,14 @@ public interface FileService {
      * 逻辑删除中转站文件（仅 STAGING 可删）。
      */
     void delete(Long fileId);
+
+    /**
+     * 清理超过指定存活时间（毫秒）的分片临时目录（上传中断残留），返回清理目录数。
+     */
+    int cleanStaleChunks(long maxAgeMillis);
+
+    /**
+     * 物理清理逻辑删除超过指定天数的文件：删除 MinIO 对象、历史版本记录与数据库行，返回清理数。
+     */
+    int purgeDeletedFiles(int olderThanDays);
 }
