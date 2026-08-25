@@ -97,9 +97,10 @@
 import { onMounted, reactive, ref } from 'vue'
 import type { AuditLogVO } from '@/types/api'
 import { listAuditLogs } from '@/api/system'
+import { listDictOptions } from '@/api/dict'
 
-const moduleOptions = ['FILE', 'BORROW', 'ARCHIVE', 'SYSTEM', 'CASE', 'CATEGORY']
-const actionOptions = ['CREATE', 'UPDATE', 'DELETE', 'UPLOAD', 'DOWNLOAD', 'PREVIEW', 'ARCHIVE', 'APPROVE', 'APPLY', 'RETURN']
+const moduleOptions = ref<string[]>([])
+const actionOptions = ref<string[]>([])
 
 const rows = ref<AuditLogVO[]>([])
 const total = ref(0)
@@ -117,6 +118,15 @@ const query = reactive<{
 
 const detailDialog = ref(false)
 const detail = ref<AuditLogVO | null>(null)
+
+async function loadOptions() {
+  const [modules, actions] = await Promise.all([
+    listDictOptions('AUDIT_MODULE'),
+    listDictOptions('AUDIT_ACTION'),
+  ])
+  moduleOptions.value = modules.map((d) => d.dictValue)
+  actionOptions.value = actions.map((d) => d.dictValue)
+}
 
 async function load() {
   loading.value = true
@@ -160,7 +170,10 @@ function openDetail(row: AuditLogVO) {
   detailDialog.value = true
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  loadOptions()
+})
 </script>
 
 <style scoped>

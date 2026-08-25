@@ -61,7 +61,22 @@
           </el-select>
         </el-form-item>
         <el-form-item label="案件类型">
-          <el-input v-model="form.caseType" placeholder="如 仲裁案件" />
+          <el-select
+            v-model="form.caseType"
+            clearable
+            filterable
+            allow-create
+            default-first-option
+            placeholder="选择或输入案件类型"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="opt in caseTypeOptions"
+              :key="opt.dictValue"
+              :label="opt.dictLabel"
+              :value="opt.dictValue"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="备注信息" />
@@ -80,7 +95,9 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { categoryTree, createCase, listCases, updateCase } from '@/api/case'
+import { listDictOptions } from '@/api/dict'
 import type { CaseStatus, CaseVO, CategoryVO } from '@/types/api'
+import type { DictVO } from '@/types/api'
 
 const router = useRouter()
 
@@ -96,6 +113,7 @@ const editing = ref<CaseVO | null>(null)
 const saving = ref(false)
 const formRef = ref<FormInstance>()
 const categoryOptions = ref<CategoryVO[]>([])
+const caseTypeOptions = ref<DictVO[]>([])
 
 const form = reactive({
   caseNo: '',
@@ -123,6 +141,10 @@ async function load() {
 
 async function loadCategories() {
   categoryOptions.value = await categoryTree()
+}
+
+async function loadCaseTypes() {
+  caseTypeOptions.value = await listDictOptions('CASE_TYPE')
 }
 
 function statusLabel(status: CaseStatus) {
@@ -203,6 +225,7 @@ async function save() {
 onMounted(() => {
   load()
   loadCategories()
+  loadCaseTypes()
 })
 </script>
 

@@ -458,6 +458,33 @@ class SystemFlowTest {
         assertThat(((Number) stats.get("activeBorrowCount")).longValue()).isGreaterThanOrEqualTo(0);
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void publicDictLookup() {
+        // 未登录 → 401
+        ResponseEntity<Map> unauthorized = restTemplate.exchange(
+                "/api/v1/dicts/type/CASE_TYPE", HttpMethod.GET,
+                new HttpEntity<>(new HttpHeaders()), Map.class);
+        assertThat(unauthorized.getBody().get("code")).isEqualTo(401);
+
+        // 普通办案人员可读取（无需 ADMIN）
+        createUser("SYS-TEST-DICT", "123456", "CASE_HANDLER");
+        String handlerToken = login("SYS-TEST-DICT", "123456");
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/api/v1/dicts/type/CASE_TYPE", HttpMethod.GET,
+                new HttpEntity<>(authHeaders(handlerToken)), Map.class);
+        assertThat(response.getBody().get("code")).isEqualTo(200);
+        List<Map<String, Object>> records = (List<Map<String, Object>>) response.getBody().get("data");
+        assertThat(records).anyMatch(d -> "仲裁案件".equals(d.get("dictLabel")));
+
+        // 未知类型 → 空列表
+        ResponseEntity<Map> empty = restTemplate.exchange(
+                "/api/v1/dicts/type/NOT_EXISTS", HttpMethod.GET,
+                new HttpEntity<>(authHeaders(handlerToken)), Map.class);
+        assertThat(empty.getBody().get("code")).isEqualTo(200);
+        assertThat((List<Map<String, Object>>) empty.getBody().get("data")).isEmpty();
+    }
+
     private String login(String username, String password) {
         ResponseEntity<Map> response = restTemplate.postForEntity(
                 "/api/v1/auth/login",

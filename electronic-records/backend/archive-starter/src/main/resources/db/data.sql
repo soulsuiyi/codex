@@ -70,3 +70,82 @@ WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'STRUCTURED_DOC' AND 
 INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
 SELECT 'STRUCTURED_DOC', 'APPLICATION', '申请书', '申请书', 8, '结构化文书文件名关键词'
 WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'STRUCTURED_DOC' AND dict_code = 'APPLICATION');
+
+-- 案件类型下拉选项
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'CASE_TYPE', 'ARBITRATION', '仲裁案件', '仲裁案件', 1, '案件类型下拉'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'CASE_TYPE' AND dict_code = 'ARBITRATION');
+
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'CASE_TYPE', 'MEDIATION', '调解案件', '调解案件', 2, '案件类型下拉'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'CASE_TYPE' AND dict_code = 'MEDIATION');
+
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'CASE_TYPE', 'OTHER', '其他', '其他', 3, '案件类型下拉'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'CASE_TYPE' AND dict_code = 'OTHER');
+
+-- 审计日志模块下拉选项
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'AUDIT_MODULE', 'FILE', '文件', 'FILE', 1, '审计模块下拉'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'AUDIT_MODULE' AND dict_code = 'FILE');
+
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'AUDIT_MODULE', 'BORROW', '借阅', 'BORROW', 2, '审计模块下拉'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'AUDIT_MODULE' AND dict_code = 'BORROW');
+
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'AUDIT_MODULE', 'ARCHIVE', '归档', 'ARCHIVE', 3, '审计模块下拉'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'AUDIT_MODULE' AND dict_code = 'ARCHIVE');
+
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'AUDIT_MODULE', 'SYSTEM', '系统', 'SYSTEM', 4, '审计模块下拉'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'AUDIT_MODULE' AND dict_code = 'SYSTEM');
+
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'AUDIT_MODULE', 'CASE', '案件', 'CASE', 5, '审计模块下拉'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'AUDIT_MODULE' AND dict_code = 'CASE');
+
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'AUDIT_MODULE', 'CATEGORY', '分类', 'CATEGORY', 6, '审计模块下拉'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'AUDIT_MODULE' AND dict_code = 'CATEGORY');
+
+-- 审计动作下拉选项
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'AUDIT_ACTION', 'CREATE', '新建', 'CREATE', 1, '审计动作下拉'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'AUDIT_ACTION' AND dict_code = 'CREATE');
+
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'AUDIT_ACTION', 'UPDATE', '更新', 'UPDATE', 2, '审计动作下拉'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'AUDIT_ACTION' AND dict_code = 'UPDATE');
+
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'AUDIT_ACTION', 'DELETE', '删除', 'DELETE', 3, '审计动作下拉'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'AUDIT_ACTION' AND dict_code = 'DELETE');
+
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'AUDIT_ACTION', 'UPLOAD', '上传', 'UPLOAD', 4, '审计动作下拉'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'AUDIT_ACTION' AND dict_code = 'UPLOAD');
+
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'AUDIT_ACTION', 'DOWNLOAD', '下载', 'DOWNLOAD', 5, '审计动作下拉'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'AUDIT_ACTION' AND dict_code = 'DOWNLOAD');
+
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'AUDIT_ACTION', 'PREVIEW', '预览', 'PREVIEW', 6, '审计动作下拉'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'AUDIT_ACTION' AND dict_code = 'PREVIEW');
+
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'AUDIT_ACTION', 'ARCHIVE', '归档', 'ARCHIVE', 7, '审计动作下拉'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'AUDIT_ACTION' AND dict_code = 'ARCHIVE');
+
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'AUDIT_ACTION', 'APPROVE', '审批', 'APPROVE', 8, '审计动作下拉'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'AUDIT_ACTION' AND dict_code = 'APPROVE');
+
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'AUDIT_ACTION', 'APPLY', '申请', 'APPLY', 9, '审计动作下拉'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'AUDIT_ACTION' AND dict_code = 'APPLY');
+
+INSERT INTO sys_dict (dict_type, dict_code, dict_label, dict_value, sort_order, remark)
+SELECT 'AUDIT_ACTION', 'RETURN', '归还', 'RETURN', 10, '审计动作下拉'
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict WHERE dict_type = 'AUDIT_ACTION' AND dict_code = 'RETURN');
