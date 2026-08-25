@@ -101,7 +101,6 @@
 import { nextTick, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox, type UploadFile } from 'element-plus'
-import Hls from 'hls.js'
 import {
   deleteFile,
   downloadFile,
@@ -112,13 +111,10 @@ import {
   uploadChunk,
   uploadFile,
 } from '@/api/file'
-import * as pdfjsLib from 'pdfjs-dist'
-import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import type { FileVO, VersionListVO } from '@/types/api'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
+import type Hls from 'hls.js'
 import { getToken } from '@/utils/request'
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
 
 const route = useRoute()
 const caseNo = route.params.caseNo as string
@@ -234,6 +230,7 @@ async function openVideoPreview(row: FileVO) {
   if (!videoEl.value) return
   const base = import.meta.env.VITE_API_BASE_URL || '/api/v1'
   const playlistUrl = `${base}/files/${row.id}/hls/playlist.m3u8`
+  const { default: Hls } = await import('hls.js')
   if (Hls.isSupported()) {
     hls = new Hls({
       xhrSetup: (xhr) => {
@@ -273,6 +270,9 @@ function closeAudioPreview() {
 }
 
 async function openPdfPreview(blob: Blob, title: string) {
+  const pdfjsLib = await import('pdfjs-dist')
+  const worker = await import('pdfjs-dist/build/pdf.worker.min.mjs?url')
+  pdfjsLib.GlobalWorkerOptions.workerSrc = worker.default
   const url = URL.createObjectURL(blob)
   const loadingTask = pdfjsLib.getDocument(url)
   pdfDoc = await loadingTask.promise
