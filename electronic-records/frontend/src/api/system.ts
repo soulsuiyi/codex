@@ -3,6 +3,7 @@ import type {
   ApiKeyCreateRequest,
   ApiKeyUpdateRequest,
   ApiKeyVO,
+  AuditRetentionVO,
   AuditLogVO,
   DictRequest,
   DictVO,
@@ -128,6 +129,10 @@ export interface AuditLogQuery {
 
 export function listAuditLogs(params: AuditLogQuery): Promise<PageResult<AuditLogVO>> {
   return get<PageResult<AuditLogVO>>('/system/audit-logs', params)
+}
+
+export function auditRetentionInfo(): Promise<AuditRetentionVO> {
+  return get<AuditRetentionVO>('/system/audit-logs/retention')
 }
 
 // ---------- 运行统计 ----------

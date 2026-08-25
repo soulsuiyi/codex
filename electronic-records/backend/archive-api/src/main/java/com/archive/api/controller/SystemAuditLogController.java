@@ -1,10 +1,12 @@
 package com.archive.api.controller;
 
 import cn.dev33.satoken.annotation.SaCheckRole;
+import com.archive.common.dto.AuditRetentionVO;
 import com.archive.common.dto.AuditLogVO;
 import com.archive.common.dto.PageResult;
 import com.archive.common.response.Result;
 import com.archive.core.facade.SystemAdminFacade;
+import com.archive.core.service.AuditArchiveService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -25,9 +27,12 @@ import java.time.LocalDateTime;
 public class SystemAuditLogController {
 
     private final SystemAdminFacade systemAdminFacade;
+    private final AuditArchiveService auditArchiveService;
 
-    public SystemAuditLogController(SystemAdminFacade systemAdminFacade) {
+    public SystemAuditLogController(SystemAdminFacade systemAdminFacade,
+                                    AuditArchiveService auditArchiveService) {
         this.systemAdminFacade = systemAdminFacade;
+        this.auditArchiveService = auditArchiveService;
     }
 
     @GetMapping
@@ -45,5 +50,11 @@ public class SystemAuditLogController {
             @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime endTime) {
         return Result.success(systemAdminFacade.pageAuditLogs(
                 page, size, module, action, username, result, startTime, endTime));
+    }
+
+    @GetMapping("/retention")
+    @Operation(summary = "审计保留与冷存储归档情况", description = "保留天数、冷存储归档文件数与最近归档日期")
+    public Result<AuditRetentionVO> retention() {
+        return Result.success(auditArchiveService.retentionInfo());
     }
 }

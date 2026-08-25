@@ -485,6 +485,29 @@ class SystemFlowTest {
         assertThat((List<Map<String, Object>>) empty.getBody().get("data")).isEmpty();
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void auditRetentionInfoFlow() {
+        String token = login("admin", "admin123");
+        createUser("SYS-TEST-RET", "123456", "CASE_HANDLER");
+        String handlerToken = login("SYS-TEST-RET", "123456");
+
+        // 非管理员 → 403
+        ResponseEntity<Map> forbidden = restTemplate.exchange(
+                "/api/v1/system/audit-logs/retention", HttpMethod.GET,
+                new HttpEntity<>(authHeaders(handlerToken)), Map.class);
+        assertThat(forbidden.getBody().get("code")).isEqualTo(403);
+
+        // 管理员可读
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/api/v1/system/audit-logs/retention", HttpMethod.GET,
+                new HttpEntity<>(authHeaders(token)), Map.class);
+        assertThat(response.getBody().get("code")).isEqualTo(200);
+        Map<String, Object> data = (Map<String, Object>) response.getBody().get("data");
+        assertThat(((Number) data.get("retentionDays")).intValue()).isGreaterThanOrEqualTo(365);
+        assertThat(((Number) data.get("archivedFiles")).longValue()).isGreaterThanOrEqualTo(0);
+    }
+
     private String login(String username, String password) {
         ResponseEntity<Map> response = restTemplate.postForEntity(
                 "/api/v1/auth/login",

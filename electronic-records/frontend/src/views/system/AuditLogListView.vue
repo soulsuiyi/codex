@@ -1,5 +1,14 @@
 <template>
   <el-card>
+    <el-alert
+      v-if="retention"
+      type="info"
+      :closable="false"
+      show-icon
+      class="retention-alert"
+      title="审计日志冷存储归档"
+      :description="`日志默认保留 ${retention.retentionDays} 天，超期自动归档至 MinIO 冷存储；当前冷存储归档 ${retention.archivedFiles} 个文件，最近归档 ${retention.lastArchivedAt || '暂无'}。`"
+    />
     <el-form inline class="filter-form">
       <el-form-item label="模块">
         <el-select v-model="query.module" clearable placeholder="全部" style="width: 130px">
@@ -96,8 +105,9 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import type { AuditLogVO } from '@/types/api'
-import { listAuditLogs } from '@/api/system'
+import { auditRetentionInfo, listAuditLogs } from '@/api/system'
 import { listDictOptions } from '@/api/dict'
+import type { AuditRetentionVO } from '@/types/api'
 
 const moduleOptions = ref<string[]>([])
 const actionOptions = ref<string[]>([])
@@ -118,6 +128,7 @@ const query = reactive<{
 
 const detailDialog = ref(false)
 const detail = ref<AuditLogVO | null>(null)
+const retention = ref<AuditRetentionVO | null>(null)
 
 async function loadOptions() {
   const [modules, actions] = await Promise.all([
@@ -126,6 +137,10 @@ async function loadOptions() {
   ])
   moduleOptions.value = modules.map((d) => d.dictValue)
   actionOptions.value = actions.map((d) => d.dictValue)
+}
+
+async function loadRetention() {
+  retention.value = await auditRetentionInfo()
 }
 
 async function load() {
@@ -173,12 +188,17 @@ function openDetail(row: AuditLogVO) {
 onMounted(() => {
   load()
   loadOptions()
+  loadRetention()
 })
 </script>
 
 <style scoped>
 .filter-form {
   margin-bottom: 4px;
+}
+
+.retention-alert {
+  margin-bottom: 12px;
 }
 
 .pagination {

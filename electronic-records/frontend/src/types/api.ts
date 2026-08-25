@@ -333,6 +333,12 @@ export interface StatsVO {
   apiKeyCount: number
 }
 
+export interface AuditRetentionVO {
+  retentionDays: number
+  archivedFiles: number
+  lastArchivedAt?: string
+}
+
 export interface ProfileVO {
   id: number
   username: string
